@@ -43,7 +43,17 @@ export async function deleteCredentials(): Promise<void> {
 	const filePath = getCredentialsPath();
 	try {
 		fs.unlinkSync(filePath);
-	} catch {
-		// Already gone, that's fine
+	} catch (error) {
+		// ENOENT is fine (already gone), anything else is a real problem
+		if (
+			error instanceof Error &&
+			'code' in error &&
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- checking errno code on Error with 'code' property
+			(error as NodeJS.ErrnoException).code === 'ENOENT'
+		) {
+			return;
+		}
+
+		throw error;
 	}
 }
