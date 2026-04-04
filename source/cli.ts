@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {Command} from 'commander';
 import {register as registerAuth} from './auth/_cli.js';
+import {register as registerCreation} from './creation/_cli.js';
 import {register as registerExplainer} from './explainer/_cli.js';
 import {register as registerImage} from './image/_cli.js';
 import {register as registerPodcast} from './podcast/_cli.js';
@@ -18,5 +19,6 @@ registerExplainer(program);
 registerSlides(program);
 registerImage(program);
 registerSpeakers(program);
+registerCreation(program);
 
 program.parse();
