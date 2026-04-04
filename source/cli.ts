@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import {Command} from 'commander';
+import {register as registerAuth} from './auth/_cli.js';
 
 const program = new Command();
 program.name('listenhub').description('ListenHub CLI').version('0.1.0');
+
+registerAuth(program);
 
 program.parse();
