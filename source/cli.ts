@@ -2,6 +2,7 @@
 import {Command} from 'commander';
 import {register as registerAuth} from './auth/_cli.js';
 import {register as registerExplainer} from './explainer/_cli.js';
+import {register as registerImage} from './image/_cli.js';
 import {register as registerPodcast} from './podcast/_cli.js';
 import {register as registerSlides} from './slides/_cli.js';
 import {register as registerSpeakers} from './speakers/_cli.js';
@@ -15,6 +16,7 @@ registerPodcast(program);
 registerTts(program);
 registerExplainer(program);
 registerSlides(program);
+registerImage(program);
 registerSpeakers(program);
 
 program.parse();
