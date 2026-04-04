@@ -229,7 +229,8 @@ listenhub tts create [options]
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `--text <text>` | string | - | 要转语音的文本 |
-| `--source-url <url>` | string[] | - | 参考链接 |
+| `--source-url <url>` | string[] | - | 参考链接（可多次传入） |
+| `--source-text <text>` | string[] | - | 参考文本（可多次传入） |
 | `--mode <mode>` | `smart\|direct` | `smart` | 生成模式 |
 | `--lang <lang>` | `en\|zh\|ja` | 自动推断 | 语言 |
 | `--speaker <name>` | string | 按语言默认 | Speaker 名称 |
@@ -243,7 +244,7 @@ listenhub tts create [options]
 {
   sources: options.text
     ? [{ type: 'text', content: options.text }]
-    : buildSources(options.sourceUrl),
+    : buildSources(options.sourceUrl, options.sourceText),
   template: {
     type: 'flowspeech',
     mode: options.mode ?? 'smart',
@@ -275,13 +276,64 @@ listenhub explainer create [options]
 | `--no-wait` | boolean | false | 不等待完成 |
 | `--timeout <seconds>` | number | 300 | polling 超时 |
 
+**参数映射到 SDK：**
+
+```typescript
+// CLI 参数 → SDK CreateExplainerVideoParams
+{
+  query: options.query,
+  sources: buildSources(options.sourceUrl, options.sourceText),
+  style: options.style,
+  skipAudio: options.skipAudio ?? false,
+  imageConfig: {
+    size: options.imageSize ?? '2K',
+    aspectRatio: options.aspectRatio ?? '16:9',
+  },
+  template: {
+    type: 'storybook',     // 注意：SDK 类型是 'storybook' 不是 'explainer'
+    mode: options.mode ?? 'info',
+    speakers: await resolveSpeakers(options.speaker, options.speakerId, lang),
+    language: lang,
+    style: options.style,
+    size: options.imageSize ?? '2K',
+    aspectRatio: options.aspectRatio ?? '16:9',
+  },
+}
+```
+
 #### slides create
 
 ```bash
 listenhub slides create [options]
 ```
 
-与 `explainer create` 相同的选项（mode 固定为 `slides`，不暴露 `--mode`）。`--skip-audio` 默认 true。
+与 `explainer create` 相同的选项（mode 固定为 `slides`，不暴露 `--mode`）。`--skip-audio` 默认 true，用户可传 `--no-skip-audio` 覆盖以生成音频。
+
+**参数映射到 SDK：**
+
+```typescript
+// CLI 参数 → SDK CreateSlidesParams
+// 注意：SDK createSlides() 内部已默认 skipAudio: true
+{
+  query: options.query,
+  sources: buildSources(options.sourceUrl, options.sourceText),
+  style: options.style,
+  skipAudio: options.skipAudio ?? true,  // 用户传 --no-skip-audio 时为 false
+  imageConfig: {
+    size: options.imageSize ?? '2K',
+    aspectRatio: options.aspectRatio ?? '16:9',
+  },
+  template: {
+    type: 'storybook',
+    mode: 'slides',        // 固定值
+    speakers: await resolveSpeakers(options.speaker, options.speakerId, lang),
+    language: lang,
+    style: options.style,
+    size: options.imageSize ?? '2K',
+    aspectRatio: options.aspectRatio ?? '16:9',
+  },
+}
+```
 
 #### image create
 
@@ -292,12 +344,28 @@ listenhub image create [options]
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `--prompt <text>` | string | **必填** | 图片描述 |
-| `--model <model>` | string | `gemini-3-pro-image-preview` | 模型 |
+| `--model <model>` | string | - | 模型（不传则由服务端决定默认值） |
+| `--lang <lang>` | `auto\|en\|zh\|ja\|ko\|hi\|pt\|es` | - | prompt 语言提示（不传则由服务端自动判断） |
 | `--aspect-ratio <ratio>` | string | `1:1` | 图片比例 |
 | `--size <size>` | `1K\|2K\|4K` | `2K` | 图片尺寸 |
-| `--reference-url <url>` | string[] | - | 参考图片 URL |
+| `--reference-url <url>` | string[] | - | 参考图片 URL（可多次传入） |
 | `--no-wait` | boolean | false | 不等待完成 |
 | `--timeout <seconds>` | number | 120 | polling 超时（图片较快） |
+
+**参数映射到 SDK：**
+
+```typescript
+// CLI 参数 → SDK CreateAIImageParams
+// 只传用户显式指定的参数，未指定的由服务端决定默认值
+{
+  prompt: options.prompt,
+  ...(options.model && { model: options.model }),
+  ...(options.lang && { language: options.lang }),
+  aspectRatio: options.aspectRatio ?? '1:1',
+  imageSize: options.size ?? '2K',        // 注意：SDK 字段名是 imageSize 不是 size
+  ...(options.referenceUrl?.length && { referenceImageUrls: options.referenceUrl }),
+}
+```
 
 ### 查询命令
 
@@ -321,7 +389,15 @@ listenhub slides list [options]
 listenhub image list [options]
 ```
 
-同上分页选项。
+同上分页选项。调用 `client.listAIImages()`，注意返回类型是 `ListAIImagesResponse`（`AIImageItem[]`），与 episode 列表的字段不同。
+
+#### image get
+
+```bash
+listenhub image get <id>
+```
+
+获取单张图片详情。调用 `client.getAIImage(imageId)`。
 
 #### creation get
 
@@ -329,7 +405,9 @@ listenhub image list [options]
 listenhub creation get <id>
 ```
 
-获取任意内容类型的详情。
+获取 episode 类型（podcast/tts/explainer/slides）的详情。调用 `client.getCreation(episodeId)`。
+
+> 注意：`creation get` 用于 episode 类内容，`image get` 用于 AI 图片。两者使用不同的 SDK 方法和返回类型。
 
 #### creation delete
 
@@ -337,7 +415,7 @@ listenhub creation get <id>
 listenhub creation delete <id...>
 ```
 
-删除一个或多个内容。支持传多个 ID。
+删除一个或多个 episode 内容。调用 `client.deleteCreations({ids: [id1, id2, ...]})`。
 
 ### Speakers 命令
 
@@ -350,6 +428,25 @@ listenhub speakers list [options]
 | `--lang <lang>` | `en\|zh\|ja` | - | 按语言过滤 |
 
 ## Speaker 解析规则
+
+### buildSources 辅助函数
+
+将 CLI 的 `--source-url` 和 `--source-text` 参数转换为 SDK 的 `ContentSource[]`：
+
+```typescript
+function buildSources(urls?: string[], texts?: string[]): ContentSource[] {
+  const sources: ContentSource[] = [];
+  for (const uri of urls ?? []) {
+    sources.push({ type: 'url', uri });
+  }
+  for (const content of texts ?? []) {
+    sources.push({ type: 'text', content });
+  }
+  return sources;
+}
+```
+
+### speaker-resolver.ts
 
 `_shared/speaker-resolver.ts` 负责将 CLI 传入的 speaker name 解析为 SDK 需要的 `speakerInnerId`。
 
@@ -532,5 +629,7 @@ npm test        # xo lint
 - **user info / subscription 命令** — 按需添加
 - **checkin 命令** — 按需添加
 - **settings 命令** — 按需添加
+- **explainer export 命令** — SDK 有 `exportExplainerVideo(episodeId)` 方法用于触发视频导出，按需添加
+- **image `--enable-search` / `--lossless` 选项** — SDK 支持但 MVP 不暴露
 - **Shell 自动补全** — 未来可通过 Commander 的 completions 插件添加
 - **配置文件**（如 `~/.config/listenhub/config.json` 存默认 speaker/language）— 未来可添加
