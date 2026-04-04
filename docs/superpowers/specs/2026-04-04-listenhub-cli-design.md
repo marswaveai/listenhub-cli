@@ -241,6 +241,7 @@ listenhub tts create [options]
 **参数映射：**
 
 ```typescript
+// 当 --text 提供时，作为唯一 source；--source-url 和 --source-text 被忽略
 {
   sources: options.text
     ? [{ type: 'text', content: options.text }]
@@ -426,6 +427,13 @@ listenhub speakers list [options]
 | 选项 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `--lang <lang>` | `en\|zh\|ja` | - | 按语言过滤 |
+
+Human-readable 输出示例：
+```
+  Name          ID              Gender   Personality
+  Zhiyu         voice_zhiyu     female   温柔知性
+  Zhichen       voice_zhichen   male     沉稳磁性
+```
 
 ## Speaker 解析规则
 
