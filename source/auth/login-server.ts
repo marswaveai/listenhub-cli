@@ -28,10 +28,8 @@ export async function startCallbackServer(): Promise<{
 
 		if (error) {
 			const description = url.searchParams.get('error_description') ?? error;
-			response.writeHead(200, {'Content-Type': 'text/html'});
-			response.end(
-				`<html><body><h1>Login failed</h1><p>${description}</p></body></html>`,
-			);
+			response.writeHead(200, {'Content-Type': 'text/plain'});
+			response.end(`Login failed: ${description}`);
 			clearTimeout(timeout);
 			rejectCode(new Error(`OAuth error: ${description}`));
 			return;
