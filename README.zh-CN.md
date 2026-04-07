@@ -173,10 +173,10 @@ listenhub creation get "$ID" --json
 ```bash
 git clone https://github.com/marswaveai/listenhub-cli.git
 cd listenhub-cli
-npm install
-npm run dev    # TypeScript 监听模式
-npm run build  # 构建
-npm test       # xo 代码检查
+pnpm install
+pnpm run dev    # TypeScript 监听模式
+pnpm run build  # 构建
+pnpm test       # xo 代码检查
 ```
 
 ## 许可证

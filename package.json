@@ -13,11 +13,11 @@
 	],
 	"license": "MIT",
 	"scripts": {
-		"prepublishOnly": "node --run build",
+		"prepublishOnly": "pnpm run build",
 		"clean": "del-cli distribution",
-		"dev": "node --run clean && tsc --watch",
-		"build": "node --run clean && tsc && chmod +x distribution/source/cli.js",
-		"pretest": "node --run build",
+		"dev": "pnpm run clean && tsc --watch",
+		"build": "pnpm run clean && tsc && chmod +x distribution/source/cli.js",
+		"pretest": "pnpm run build",
 		"test": "xo"
 	},
 	"dependencies": {
