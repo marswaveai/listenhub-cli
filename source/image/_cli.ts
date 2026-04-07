@@ -1,4 +1,4 @@
-import type {Command} from 'commander';
+import {type Command, Option} from 'commander';
 import {getClient} from '../_shared/client.js';
 import {handleError} from '../_shared/output.js';
 import {
@@ -25,14 +25,20 @@ export function register(program: Command) {
 		.option('--aspect-ratio <ratio>', 'Aspect ratio', '1:1')
 		.option('--size <size>', 'Image size: 1K, 2K, 4K', '2K')
 		.option(
-			'--reference-url <url>',
-			'Reference image URL (repeatable)',
+			'--reference <path-or-url>',
+			'Reference image, local file or URL (repeatable, max 5)',
 			collect,
 			[],
 		)
 		.option('--no-wait', 'Return immediately without polling')
 		.option('--timeout <seconds>', 'Polling timeout', Number, 120)
 		.option('-j, --json', 'Output JSON', false)
+		.addOption(
+			new Option('--reference-url <url>', '')
+				.hideHelp()
+				.argParser((value: string, previous: string[]) => [...previous, value])
+				.default([]),
+		)
 		.action(async (options: ImageCreateOptions) => {
 			try {
 				const client = await getClient();

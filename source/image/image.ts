@@ -7,6 +7,7 @@ import type {
 } from '@marswave/listenhub-sdk';
 import {printDetail, printJson, printTable} from '../_shared/output.js';
 import {pollImageUntilDone} from '../_shared/polling.js';
+import {resolveFileOrUrl} from '../_shared/upload.js';
 
 export type ImageCreateOptions = {
 	prompt: string;
@@ -14,7 +15,8 @@ export type ImageCreateOptions = {
 	lang?: ImagePromptLanguage;
 	aspectRatio: AIImageAspectRatio;
 	size: AIImageSize;
-	referenceUrl?: string[];
+	reference: string[];
+	referenceUrl: string[];
 	wait: boolean;
 	timeout: number;
 	json: boolean;
@@ -24,15 +26,28 @@ export async function createImage(
 	client: ListenHubClient,
 	options: ImageCreateOptions,
 ): Promise<void> {
+	const allReferences = [...options.reference, ...options.referenceUrl];
+
+	if (allReferences.length > 5) {
+		throw new Error('Too many reference images (max 5)');
+	}
+
+	const referenceImageUrls =
+		allReferences.length > 0
+			? await Promise.all(
+					allReferences.map(async (ref) =>
+						resolveFileOrUrl(client, ref, {accept: 'image'}),
+					),
+				)
+			: undefined;
+
 	const {imageId} = await client.createAIImage({
 		prompt: options.prompt,
 		...(options.model && {model: options.model}),
 		...(options.lang && {language: options.lang}),
 		aspectRatio: options.aspectRatio,
 		imageSize: options.size,
-		...(options.referenceUrl?.length && {
-			referenceImageUrls: options.referenceUrl,
-		}),
+		...(referenceImageUrls && {referenceImageUrls}),
 	});
 
 	if (!options.wait) {
