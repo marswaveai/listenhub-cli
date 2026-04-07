@@ -1,0 +1,39 @@
+{
+	"name": "@marswave/listenhub-cli",
+	"version": "0.1.0",
+	"description": "Command-line interface for ListenHub",
+	"repository": "marswaveai/listenhub-cli",
+	"type": "module",
+	"bin": {
+		"listenhub": "distribution/source/cli.js"
+	},
+	"exports": "./distribution/source/cli.js",
+	"files": [
+		"distribution"
+	],
+	"license": "MIT",
+	"scripts": {
+		"prepublishOnly": "pnpm run build",
+		"clean": "del-cli distribution",
+		"dev": "pnpm run clean && tsc --watch",
+		"build": "pnpm run clean && tsc && chmod +x distribution/source/cli.js",
+		"pretest": "pnpm run build",
+		"test": "xo"
+	},
+	"dependencies": {
+		"@marswave/listenhub-sdk": "^0.0.3",
+		"commander": "^14.0.3",
+		"open": "^10.0.0",
+		"ora": "^8.0.0"
+	},
+	"devDependencies": {
+		"@sindresorhus/tsconfig": "^8.1.0",
+		"@types/node": "^25.5.0",
+		"del-cli": "^7.0.0",
+		"typescript": "^6.0.2",
+		"xo": "^2.0.2"
+	},
+	"engines": {
+		"node": ">=20"
+	}
+}
