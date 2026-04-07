@@ -112,7 +112,8 @@ export async function resolveFileOrUrl(
 		);
 	}
 
-	// Get presigned download URL (fileUrl is not publicly accessible)
-	const {downloadUrl} = await client.getFileDownloadUrl(fileUrl);
-	return downloadUrl;
+	// Return a storage.googleapis.com URL so the server's resolveUploadUrl
+	// can correctly strip the bucket name prefix and re-sign for downstream use.
+	const {pathname} = new URL(fileUrl);
+	return `https://storage.googleapis.com${pathname}`;
 }
