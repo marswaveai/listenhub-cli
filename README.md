@@ -1,8 +1,10 @@
 # ListenHub CLI
 
-Command-line interface for [ListenHub](https://listenhub.ai) — create podcasts, text-to-speech, explainer videos, slides, and AI images from your terminal.
+Command-line interface for [ListenHub](https://listenhub.ai) — create podcasts, text-to-speech, explainer videos, slides, AI images, and music from your terminal.
 
-Built on top of [`@marswave/listenhub-sdk`](https://github.com/marswaveai/listenhub-sdk).
+[中文文档](README.zh-CN.md)
+
+Built on [`@marswave/listenhub-sdk`](https://github.com/marswaveai/listenhub-sdk).
 
 ## Install
 
@@ -21,23 +23,42 @@ listenhub auth login
 # Create a podcast
 listenhub podcast create --query "AI agent trends in 2026" --mode quick
 
+# Generate music
+listenhub music generate --prompt "Chill lo-fi beats" --style "lo-fi" --title "Study Session"
+
+# Create a cover from local audio
+listenhub music cover --audio ./song.mp3 --title "My Cover"
+
+# Generate an AI image with a local reference
+listenhub image create --prompt "a dragon in watercolor style" --reference ./sketch.png
+
 # Text-to-speech
 listenhub tts create --text "Hello, world" --lang en
-
-# Generate an AI image
-listenhub image create --prompt "a dragon in watercolor style" --size 2K
-
-# List your speakers
-listenhub speakers list --lang zh
 ```
 
 ## Commands
+
+### Auth
 
 | Command | Description |
 |---------|-------------|
 | `listenhub auth login` | Log in via browser OAuth |
 | `listenhub auth logout` | Log out and revoke tokens |
 | `listenhub auth status` | Show current login status |
+
+### Music
+
+| Command | Description |
+|---------|-------------|
+| `listenhub music generate` | Generate music from a text prompt |
+| `listenhub music cover` | Create a cover from reference audio |
+| `listenhub music list` | List music tasks |
+| `listenhub music get <id>` | Get music task details |
+
+### Content Creation
+
+| Command | Description |
+|---------|-------------|
 | `listenhub podcast create` | Create a podcast episode |
 | `listenhub podcast list` | List podcast episodes |
 | `listenhub tts create` | Create text-to-speech audio |
@@ -46,9 +67,19 @@ listenhub speakers list --lang zh
 | `listenhub explainer list` | List explainer videos |
 | `listenhub slides create` | Create a slide deck |
 | `listenhub slides list` | List slide decks |
+
+### Images
+
+| Command | Description |
+|---------|-------------|
 | `listenhub image create` | Generate an AI image |
 | `listenhub image list` | List AI images |
 | `listenhub image get <id>` | Get image details |
+
+### Other
+
+| Command | Description |
+|---------|-------------|
 | `listenhub speakers list` | List available speakers |
 | `listenhub creation get <id>` | Get creation details |
 | `listenhub creation delete <id...>` | Delete creations |
@@ -62,12 +93,25 @@ All commands support:
 - `--json` / `-j` — Output JSON instead of human-readable text
 - `--help` / `-h` — Show help
 
-Creation commands (`podcast create`, `tts create`, etc.) also support:
+Creation commands also support:
 
 - `--no-wait` — Return the ID immediately without polling
-- `--timeout <seconds>` — Polling timeout (default: 300s, image: 120s)
-- `--lang <lang>` — Language (`en`, `zh`, `ja`); auto-detected from input if omitted
-- `--speaker <name>` — Speaker name (use `speakers list` to see available options)
+- `--timeout <seconds>` — Polling timeout (default varies by command)
+
+## Local File Upload
+
+`music cover` and `image create` support local file references. The CLI automatically detects local paths, validates format and size, and uploads to cloud storage before passing to the API.
+
+```bash
+# Local audio file for cover (mp3, wav, flac, m4a, ogg, aac; max 20MB)
+listenhub music cover --audio ./song.mp3
+
+# Local image for reference (jpg, png, webp, gif; max 10MB)
+listenhub image create --prompt "inspired by this" --reference ./photo.jpg
+
+# URLs are passed through directly
+listenhub music cover --audio https://example.com/song.mp3
+```
 
 ## Authentication
 
@@ -76,6 +120,23 @@ ListenHub CLI uses OAuth. Run `listenhub auth login` to open a browser window fo
 Tokens auto-refresh when nearing expiry. Run `listenhub auth status` to check.
 
 ## Examples
+
+### Music generation
+
+```bash
+# Generate with style and title
+listenhub music generate --prompt "Upbeat electronic dance" --style "EDM" --title "Night Drive"
+
+# Instrumental only
+listenhub music generate --prompt "Peaceful piano melody" --instrumental
+
+# Cover from local file
+listenhub music cover --audio ./original.mp3 --title "My Remix"
+
+# Get task ID without waiting
+ID=$(listenhub music generate --prompt "test" --no-wait --json | jq -r '.taskId')
+listenhub music get "$ID" --json
+```
 
 ### Podcast with reference material
 
@@ -87,21 +148,14 @@ listenhub podcast create \
   --lang en
 ```
 
-### TTS with a specific speaker
+### Image with local reference
 
 ```bash
-listenhub speakers list --lang zh
-listenhub tts create --text "你好世界" --speaker 若云
-```
-
-### Explainer video
-
-```bash
-listenhub explainer create \
-  --source-url https://example.com/paper \
-  --mode story \
-  --image-size 4K \
-  --aspect-ratio 16:9
+listenhub image create \
+  --prompt "A landscape painting in this style" \
+  --reference ./sketch.jpg \
+  --reference ./palette.png \
+  --aspect-ratio 16:9 --size 4K
 ```
 
 ### JSON output for scripting
@@ -127,71 +181,4 @@ npm test       # Lint with xo
 
 ## License
 
-MIT
-
----
-
-# ListenHub CLI
-
-[ListenHub](https://listenhub.ai) 的命令行工具 — 在终端里创建播客、语音合成、讲解视频、幻灯片和 AI 图片。
-
-基于 [`@marswave/listenhub-sdk`](https://github.com/marswaveai/listenhub-sdk) 构建。
-
-## 安装
-
-```bash
-npm install -g @marswave/listenhub-cli
-```
-
-需要 Node.js >= 20。
-
-## 快速开始
-
-```bash
-# 浏览器登录
-listenhub auth login
-
-# 创建播客
-listenhub podcast create --query "2026年AI趋势" --mode quick
-
-# 语音合成
-listenhub tts create --text "你好世界" --lang zh
-
-# AI 生图
-listenhub image create --prompt "水彩风格的小龙" --size 2K
-
-# 查看可用声音
-listenhub speakers list --lang zh
-```
-
-## 命令列表
-
-| 命令 | 说明 |
-|------|------|
-| `listenhub auth login` | 浏览器 OAuth 登录 |
-| `listenhub auth logout` | 登出并撤销 token |
-| `listenhub auth status` | 查看登录状态 |
-| `listenhub podcast create` | 创建播客 |
-| `listenhub podcast list` | 列出播客 |
-| `listenhub tts create` | 创建语音合成 |
-| `listenhub tts list` | 列出语音合成 |
-| `listenhub explainer create` | 创建讲解视频 |
-| `listenhub explainer list` | 列出讲解视频 |
-| `listenhub slides create` | 创建幻灯片 |
-| `listenhub slides list` | 列出幻灯片 |
-| `listenhub image create` | AI 生图 |
-| `listenhub image list` | 列出图片 |
-| `listenhub image get <id>` | 查看图片详情 |
-| `listenhub speakers list` | 列出可用声音 |
-| `listenhub creation get <id>` | 查看作品详情 |
-| `listenhub creation delete <id...>` | 删除作品 |
-
-每个命令都可以加 `--help` 查看完整选项。
-
-## 认证
-
-使用 OAuth 认证。运行 `listenhub auth login` 会打开浏览器授权。Token 存储在 `~/.config/listenhub/credentials.json`，过期前自动刷新。
-
-## 许可证
-
-MIT
+[MIT](LICENSE)
