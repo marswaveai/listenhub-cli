@@ -112,5 +112,7 @@ export async function resolveFileOrUrl(
 		);
 	}
 
-	return fileUrl;
+	// Get presigned download URL (fileUrl is not publicly accessible)
+	const {downloadUrl} = await client.getFileDownloadUrl(fileUrl);
+	return downloadUrl;
 }
