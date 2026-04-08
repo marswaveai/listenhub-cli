@@ -2,9 +2,9 @@ import type {Language, ListenHubClient} from '@marswave/listenhub-sdk';
 
 // Default speaker innerIds per language (confirmed from skills shared/speaker-selection.md)
 const defaultSpeakers: Record<Language, string[]> = {
-	zh: ['zhiyu', 'zhichen'],
-	en: ['alloy', 'echo'],
-	ja: ['nanami', 'keita'],
+	zh: ['CN-Man-Beijing-V2', 'gaoqing3-bfb5c88a'],
+	en: ['cozy-man-english', 'travel-girl-english'],
+	ja: ['tianzhongdunzi-5d612542', '1shenguhaoshivocals-c002bc47'],
 };
 
 export async function resolveSpeakers(
