@@ -4,16 +4,13 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@marswave/listenhub-sdk': link:../../../listenhub-sdk/.worktrees/listenhub-sdk--54
-
 importers:
 
   .:
     dependencies:
       '@marswave/listenhub-sdk':
-        specifier: link:../../../listenhub-sdk/.worktrees/listenhub-sdk--54
-        version: link:../../../listenhub-sdk/.worktrees/listenhub-sdk--54
+        specifier: ^0.0.4
+        version: 0.0.4
       commander:
         specifier: ^14.0.3
         version: 14.0.3
@@ -222,6 +219,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@marswave/listenhub-sdk@0.0.4':
+    resolution: {integrity: sha512-24kmN+TS2xuIObGAN9LzYG4LNucbPsjlbOivRPCvh49w0dmuNO1UPQRVK3bNWyYyT/cdFfajENrtYAfIv+3Atw==}
+    engines: {node: '>=20'}
 
   '@napi-rs/wasm-runtime@0.2.12':
     resolution: {integrity: sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ==}
@@ -1339,6 +1340,10 @@ packages:
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
+  ky@1.14.3:
+    resolution: {integrity: sha512-9zy9lkjac+TR1c2tG+mkNSVlyOpInnWdSMiue4F+kq8TwJSgv6o8jhLRg8Ho6SnZ9wOYUq/yozts9qQCfk7bIw==}
+    engines: {node: '>=18'}
+
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
@@ -2162,6 +2167,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@marswave/listenhub-sdk@0.0.4':
+    dependencies:
+      ky: 1.14.3
 
   '@napi-rs/wasm-runtime@0.2.12':
     dependencies:
@@ -3462,6 +3471,8 @@ snapshots:
   keyv@4.5.4:
     dependencies:
       json-buffer: 3.0.1
+
+  ky@1.14.3: {}
 
   levn@0.4.1:
     dependencies:
