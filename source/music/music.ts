@@ -1,4 +1,5 @@
 import type {
+	CreateMusicExtendParams,
 	ListenHubClient,
 	MusicTaskDetail,
 	MusicTaskStatus,
@@ -25,6 +26,24 @@ export type MusicCoverOptions = {
 	style?: string;
 	title?: string;
 	instrumental: boolean;
+	wait: boolean;
+	timeout: number;
+	json: boolean;
+};
+
+export type MusicExtendOptions = {
+	audio: string;
+	model: string;
+	continueAt: number;
+	prompt?: string;
+	style?: string;
+	title?: string;
+	instrumental: boolean;
+	negativeTags?: string;
+	vocalGender?: string;
+	styleWeight?: number;
+	weirdness?: number;
+	audioWeight?: number;
 	wait: boolean;
 	timeout: number;
 	json: boolean;
@@ -146,6 +165,53 @@ export async function createCover(
 		...(options.title && {title: options.title}),
 		...(options.instrumental && {instrumental: true}),
 	});
+
+	if (!options.wait) {
+		if (options.json) {
+			printJson(result);
+		} else {
+			console.log(`\u2713 Music task submitted: ${result.taskId}`);
+		}
+
+		return;
+	}
+
+	const task = await pollMusicTaskUntilDone(client, result.taskId, {
+		timeout: options.timeout,
+		json: options.json,
+	});
+
+	if (options.json) {
+		printJson(task);
+	} else {
+		printMusicDetail(task);
+	}
+}
+
+export async function createExtend(
+	client: ListenHubClient,
+	options: MusicExtendOptions,
+): Promise<void> {
+	const uploadUrl = await resolveFileOrUrl(client, options.audio, {
+		accept: 'audio',
+	});
+
+	const params: CreateMusicExtendParams = {
+		uploadUrl,
+		model: options.model as CreateMusicExtendParams['model'],
+		continueAt: options.continueAt,
+		...(options.prompt && {prompt: options.prompt}),
+		...(options.style && {style: options.style}),
+		...(options.title && {title: options.title}),
+		...(options.instrumental && {instrumental: true}),
+		...(options.negativeTags && {negativeTags: options.negativeTags}),
+		...(options.vocalGender && {vocalGender: options.vocalGender as 'm' | 'f'}),
+		...(options.styleWeight !== undefined && {styleWeight: options.styleWeight}),
+		...(options.weirdness !== undefined && {weirdnessConstraint: options.weirdness}),
+		...(options.audioWeight !== undefined && {audioWeight: options.audioWeight}),
+	};
+
+	const result = await client.createMusicExtend(params);
 
 	if (!options.wait) {
 		if (options.json) {
