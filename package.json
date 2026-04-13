@@ -34,5 +34,10 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "overrides": {
+      "typescript": "^6.0.2"
+    }
   }
 }

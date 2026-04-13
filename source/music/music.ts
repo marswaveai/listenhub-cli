@@ -196,8 +196,9 @@ export async function createExtend(
 		accept: 'audio',
 	});
 
-	const params: CreateMusicExtendParams = {
+	const parameters: CreateMusicExtendParams = {
 		uploadUrl,
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- CLI string validated by Commander choices
 		model: options.model as CreateMusicExtendParams['model'],
 		continueAt: options.continueAt,
 		...(options.prompt && {prompt: options.prompt}),
@@ -205,13 +206,23 @@ export async function createExtend(
 		...(options.title && {title: options.title}),
 		...(options.instrumental && {instrumental: true}),
 		...(options.negativeTags && {negativeTags: options.negativeTags}),
-		...(options.vocalGender && {vocalGender: options.vocalGender as 'm' | 'f'}),
-		...(options.styleWeight !== undefined && {styleWeight: options.styleWeight}),
-		...(options.weirdness !== undefined && {weirdnessConstraint: options.weirdness}),
-		...(options.audioWeight !== undefined && {audioWeight: options.audioWeight}),
+		...(options.vocalGender && {
+			vocalGender:
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- CLI string validated by Commander choices
+				options.vocalGender as CreateMusicExtendParams['vocalGender'],
+		}),
+		...(options.styleWeight !== undefined && {
+			styleWeight: options.styleWeight,
+		}),
+		...(options.weirdness !== undefined && {
+			weirdnessConstraint: options.weirdness,
+		}),
+		...(options.audioWeight !== undefined && {
+			audioWeight: options.audioWeight,
+		}),
 	};
 
-	const result = await client.createMusicExtend(params);
+	const result = await client.createMusicExtend(parameters);
 
 	if (!options.wait) {
 		if (options.json) {

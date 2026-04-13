@@ -129,7 +129,7 @@ export async function pollMusicTaskUntilDone(
 	throw new CliTimeoutError(`Timed out after ${timeoutS}s`);
 }
 
-const lyricsIntervalMs = 5_000;
+const lyricsIntervalMs = 5000;
 
 export async function pollLyricsTaskUntilDone(
 	client: ListenHubClient,
