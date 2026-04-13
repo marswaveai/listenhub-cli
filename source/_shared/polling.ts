@@ -2,6 +2,7 @@ import type {
 	AIImageItem,
 	EpisodeDetail,
 	ListenHubClient,
+	LyricsTaskDetail,
 	MusicTaskDetail,
 } from '@marswave/listenhub-sdk';
 import ora from 'ora';
@@ -121,6 +122,46 @@ export async function pollMusicTaskUntilDone(
 
 		if (spinner) {
 			spinner.text = `Creating music... (${String(i + 2)}/${maxAttempts})`;
+		}
+	}
+
+	spinner?.fail('Timed out');
+	throw new CliTimeoutError(`Timed out after ${timeoutS}s`);
+}
+
+const lyricsIntervalMs = 5_000;
+
+export async function pollLyricsTaskUntilDone(
+	client: ListenHubClient,
+	taskId: string,
+	options: {timeout?: number; json?: boolean},
+): Promise<LyricsTaskDetail> {
+	const timeoutS = options.timeout ?? 120;
+	const maxAttempts = Math.ceil(timeoutS / (lyricsIntervalMs / 1000));
+	const spinner = options.json
+		? undefined
+		: ora({text: `Creating lyrics... (1/${maxAttempts})`}).start();
+
+	for (let i = 0; i < maxAttempts; i++) {
+		if (i > 0) {
+			await sleep(lyricsIntervalMs); // eslint-disable-line no-await-in-loop
+		}
+
+		const task = await client.getLyricsTask(taskId); // eslint-disable-line no-await-in-loop
+		if (task.status === 'success') {
+			spinner?.succeed('Lyrics generated successfully');
+			return task;
+		}
+
+		if (task.status === 'failed') {
+			spinner?.fail('Lyrics generation failed');
+			throw new Error(
+				`Lyrics generation failed${task.errorMessage ? `: ${task.errorMessage}` : ''}`,
+			);
+		}
+
+		if (spinner) {
+			spinner.text = `Creating lyrics... (${String(i + 2)}/${maxAttempts})`;
 		}
 	}
 

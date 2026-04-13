@@ -20,7 +20,7 @@
     "test": "xo"
   },
   "dependencies": {
-    "@marswave/listenhub-sdk": "^0.0.3",
+    "@marswave/listenhub-sdk": "^0.0.4",
     "commander": "^14.0.3",
     "open": "^10.0.0",
     "ora": "^8.0.0"
