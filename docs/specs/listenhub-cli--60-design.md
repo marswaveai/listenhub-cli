@@ -84,7 +84,7 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 
 ```json
 {
-  "ready": "vp check && vp test run"
+	"ready": "vp check && vp test run"
 }
 ```
 
@@ -94,17 +94,17 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 
 ```json
 {
-  "dev": "vp pack --watch",
-  "build": "vp pack",
-  "lint": "vp lint",
-  "lint:fix": "vp lint --fix",
-  "fmt": "vp fmt",
-  "fmt:check": "vp fmt --check",
-  "check": "vp check",
-  "test": "vp test run",
-  "test:watch": "vp test",
-  "ready": "vp check && vp test run",
-  "prepublishOnly": "pnpm run build"
+	"dev": "vp pack --watch",
+	"build": "vp pack",
+	"lint": "vp lint",
+	"lint:fix": "vp lint --fix",
+	"fmt": "vp fmt",
+	"fmt:check": "vp fmt --check",
+	"check": "vp check",
+	"test": "vp test run",
+	"test:watch": "vp test",
+	"ready": "vp check && vp test run",
+	"prepublishOnly": "pnpm run build"
 }
 ```
 
@@ -143,12 +143,12 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 
 ```json
 {
-  "extends": "@sindresorhus/tsconfig",
-  "compilerOptions": {
-    "rootDir": "source",
-    "types": ["node"]
-  },
-  "include": ["source"]
+	"extends": "@sindresorhus/tsconfig",
+	"compilerOptions": {
+		"rootDir": "source",
+		"types": ["node"]
+	},
+	"include": ["source"]
 }
 ```
 
@@ -157,20 +157,20 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 所有 vp 子命令（pack、lint、fmt、check）的行为集中到 `vite.config.ts`，不依赖 CLI 参数传递：
 
 ```ts
-import { defineConfig } from "vite-plus";
+import {defineConfig} from 'vite-plus';
 
 export default defineConfig({
-  pack: {
-    entry: ["source/cli.ts"],
-    platform: "node",
-    format: ["esm"],
-  },
-  lint: {
-    options: {
-      typeAware: true,
-      typeCheck: true,
-    },
-  },
+	pack: {
+		entry: ['source/cli.ts'],
+		platform: 'node',
+		format: ['esm'],
+	},
+	lint: {
+		options: {
+			typeAware: true,
+			typeCheck: true,
+		},
+	},
 });
 ```
 

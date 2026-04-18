@@ -40,20 +40,20 @@ SDK (separate repo, separate commit):
 - [ ] **Step 1: Create `vite.config.ts`**
 
 ```ts
-import { defineConfig } from "vite-plus";
+import {defineConfig} from 'vite-plus';
 
 export default defineConfig({
-  pack: {
-    entry: ["source/cli.ts"],
-    platform: "node",
-    format: ["esm"],
-  },
-  lint: {
-    options: {
-      typeAware: true,
-      typeCheck: true,
-    },
-  },
+	pack: {
+		entry: ['source/cli.ts'],
+		platform: 'node',
+		format: ['esm'],
+	},
+	lint: {
+		options: {
+			typeAware: true,
+			typeCheck: true,
+		},
+	},
 });
 ```
 
@@ -214,12 +214,12 @@ Replace the entire file with:
 
 ```json
 {
-  "extends": "@sindresorhus/tsconfig",
-  "compilerOptions": {
-    "rootDir": "source",
-    "types": ["node"]
-  },
-  "include": ["source"]
+	"extends": "@sindresorhus/tsconfig",
+	"compilerOptions": {
+		"rootDir": "source",
+		"types": ["node"]
+	},
+	"include": ["source"]
 }
 ```
 
@@ -281,12 +281,12 @@ git commit -m "chore: remove xo config, update gitignore for dist/"
 - [ ] **Step 1: Create vitest config**
 
 ```ts
-import { defineConfig } from "vitest/config";
+import {defineConfig} from 'vitest/config';
 
 export default defineConfig({
-  test: {
-    clearMocks: true,
-  },
+	test: {
+		clearMocks: true,
+	},
 });
 ```
 
@@ -424,15 +424,15 @@ Expected: all pass (0 errors). If type errors appear:
 
 ```json
 {
-  "compilerOptions": {
-    "strict": true,
-    "rootDir": "source",
-    "types": ["node"],
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "target": "esnext"
-  },
-  "include": ["source"]
+	"compilerOptions": {
+		"strict": true,
+		"rootDir": "source",
+		"types": ["node"],
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"target": "esnext"
+	},
+	"include": ["source"]
 }
 ```
 
