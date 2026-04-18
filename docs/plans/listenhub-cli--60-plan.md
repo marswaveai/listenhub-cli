@@ -14,19 +14,19 @@
 
 ## File Map
 
-| Action | File | Purpose |
-|--------|------|---------|
-| Create | `vite.config.ts` | Central vp config (pack entry, lint options) |
-| Create | `vitest.config.ts` | Vitest test runner config |
-| Modify | `package.json` | Scripts, deps, bin, files, remove overrides |
-| Modify | `tsconfig.json` | Remove outDir/declaration (no longer compiling via tsc) |
-| Modify | `.gitignore` | Replace `distribution/` with `dist/` |
-| Delete | `xo.config.mjs` | Replaced by vp lint (oxlint) |
+| Action | File               | Purpose                                                 |
+| ------ | ------------------ | ------------------------------------------------------- |
+| Create | `vite.config.ts`   | Central vp config (pack entry, lint options)            |
+| Create | `vitest.config.ts` | Vitest test runner config                               |
+| Modify | `package.json`     | Scripts, deps, bin, files, remove overrides             |
+| Modify | `tsconfig.json`    | Remove outDir/declaration (no longer compiling via tsc) |
+| Modify | `.gitignore`       | Replace `distribution/` with `dist/`                    |
+| Delete | `xo.config.mjs`    | Replaced by vp lint (oxlint)                            |
 
 SDK (separate repo, separate commit):
 
-| Action | File | Purpose |
-|--------|------|---------|
+| Action | File                                           | Purpose                      |
+| ------ | ---------------------------------------------- | ---------------------------- |
 | Modify | `~/coding/marswave/listenhub-sdk/package.json` | Upgrade vite-plus to ^0.1.18 |
 
 ---
@@ -34,25 +34,26 @@ SDK (separate repo, separate commit):
 ### Task 1: Create vite.config.ts
 
 **Files:**
+
 - Create: `vite.config.ts`
 
 - [ ] **Step 1: Create `vite.config.ts`**
 
 ```ts
-import {defineConfig} from 'vite-plus';
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-	pack: {
-		entry: ['source/cli.ts'],
-		platform: 'node',
-		format: ['esm'],
-	},
-	lint: {
-		options: {
-			typeAware: true,
-			typeCheck: true,
-		},
-	},
+  pack: {
+    entry: ["source/cli.ts"],
+    platform: "node",
+    format: ["esm"],
+  },
+  lint: {
+    options: {
+      typeAware: true,
+      typeCheck: true,
+    },
+  },
 });
 ```
 
@@ -68,6 +69,7 @@ git commit -m "chore: add vite.config.ts for vp pack/lint/check"
 ### Task 2: Update package.json — dependencies and overrides
 
 **Files:**
+
 - Modify: `package.json`
 
 This task only changes dependencies, overrides, and engine-related fields. Scripts are updated in Task 3.
@@ -75,18 +77,22 @@ This task only changes dependencies, overrides, and engine-related fields. Scrip
 - [ ] **Step 1: Remove old dev dependencies and add new ones**
 
 Remove these devDependencies:
+
 - `xo`
 - `del-cli`
 
 Downgrade:
+
 - `typescript`: `^6.0.2` → `^5.9.3`
 
 Add new devDependencies:
+
 - `vite-plus`: `^0.1.18`
 - `vite`: `^8.0.3`
 - `vitest`: `^2.0.0`
 
 Keep unchanged:
+
 - `@sindresorhus/tsconfig`: `^8.1.0`
 - `@types/node`: `^25.5.0`
 
@@ -128,6 +134,7 @@ git commit -m "chore: migrate deps to vite-plus, downgrade typescript to 5.x"
 ### Task 3: Update package.json — scripts, bin, files
 
 **Files:**
+
 - Modify: `package.json`
 
 - [ ] **Step 1: Replace all scripts**
@@ -155,6 +162,7 @@ Removed scripts: `clean`, `pretest`.
 - [ ] **Step 2: Update bin and files**
 
 Change `bin` from:
+
 ```json
 "bin": {
   "listenhub": "distribution/source/cli.js"
@@ -162,6 +170,7 @@ Change `bin` from:
 ```
 
 To:
+
 ```json
 "bin": {
   "listenhub": "dist/cli.mjs"
@@ -169,6 +178,7 @@ To:
 ```
 
 Change `files` from:
+
 ```json
 "files": [
   "distribution/source"
@@ -176,6 +186,7 @@ Change `files` from:
 ```
 
 To:
+
 ```json
 "files": [
   "dist"
@@ -194,6 +205,7 @@ git commit -m "chore: update scripts to vp commands, point bin to dist/cli.mjs"
 ### Task 4: Update tsconfig.json
 
 **Files:**
+
 - Modify: `tsconfig.json`
 
 - [ ] **Step 1: Simplify tsconfig.json**
@@ -212,6 +224,7 @@ Replace the entire file with:
 ```
 
 Changes from current:
+
 - Removed `"declaration": false` (tsc no longer compiles)
 - Removed `"outDir": "distribution"` (vp pack handles output)
 - Changed `"rootDir": "."` → `"rootDir": "source"` (matches SDK pattern, scopes type-check to source only)
@@ -228,6 +241,7 @@ git commit -m "chore: simplify tsconfig for vp check (no longer used for compila
 ### Task 5: Delete xo.config.mjs and update .gitignore
 
 **Files:**
+
 - Delete: `xo.config.mjs`
 - Modify: `.gitignore`
 
@@ -261,17 +275,18 @@ git commit -m "chore: remove xo config, update gitignore for dist/"
 ### Task 6: Create vitest.config.ts
 
 **Files:**
+
 - Create: `vitest.config.ts`
 
 - [ ] **Step 1: Create vitest config**
 
 ```ts
-import {defineConfig} from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-	test: {
-		clearMocks: true,
-	},
+  test: {
+    clearMocks: true,
+  },
 });
 ```
 
@@ -379,6 +394,7 @@ pnpm lint
 ```
 
 If there are remaining errors, fix them manually. Common issues:
+
 - Unused variables: remove or prefix with `_`
 - Missing return types: add explicit return type annotations
 - Any `throw` of non-Error objects: wrap in `new Error()`
@@ -456,6 +472,7 @@ git commit -m "fix: resolve type/lint errors from vp check"
 ### Task 10: SDK — upgrade vite-plus
 
 **Files:**
+
 - Modify: `~/coding/marswave/listenhub-sdk/package.json`
 
 This task operates in the **listenhub-sdk** repo, not the CLI worktree. A separate worktree for SDK is not needed — this is a single-line dep bump.

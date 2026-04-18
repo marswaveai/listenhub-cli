@@ -40,49 +40,49 @@ listenhub tts create --text "你好世界" --lang zh
 
 ### 认证
 
-| 命令 | 说明 |
-|------|------|
-| `listenhub auth login` | 浏览器 OAuth 登录 |
-| `listenhub auth logout` | 登出并撤销 token |
-| `listenhub auth status` | 查看登录状态 |
+| 命令                    | 说明              |
+| ----------------------- | ----------------- |
+| `listenhub auth login`  | 浏览器 OAuth 登录 |
+| `listenhub auth logout` | 登出并撤销 token  |
+| `listenhub auth status` | 查看登录状态      |
 
 ### 音乐
 
-| 命令 | 说明 |
-|------|------|
+| 命令                       | 说明                 |
+| -------------------------- | -------------------- |
 | `listenhub music generate` | 根据文字描述生成音乐 |
-| `listenhub music cover` | 用参考音频创建翻唱 |
-| `listenhub music list` | 列出音乐任务 |
-| `listenhub music get <id>` | 查看音乐任务详情 |
+| `listenhub music cover`    | 用参考音频创建翻唱   |
+| `listenhub music list`     | 列出音乐任务         |
+| `listenhub music get <id>` | 查看音乐任务详情     |
 
 ### 内容创作
 
-| 命令 | 说明 |
-|------|------|
-| `listenhub podcast create` | 创建播客 |
-| `listenhub podcast list` | 列出播客 |
-| `listenhub tts create` | 创建语音合成 |
-| `listenhub tts list` | 列出语音合成 |
+| 命令                         | 说明         |
+| ---------------------------- | ------------ |
+| `listenhub podcast create`   | 创建播客     |
+| `listenhub podcast list`     | 列出播客     |
+| `listenhub tts create`       | 创建语音合成 |
+| `listenhub tts list`         | 列出语音合成 |
 | `listenhub explainer create` | 创建讲解视频 |
-| `listenhub explainer list` | 列出讲解视频 |
-| `listenhub slides create` | 创建幻灯片 |
-| `listenhub slides list` | 列出幻灯片 |
+| `listenhub explainer list`   | 列出讲解视频 |
+| `listenhub slides create`    | 创建幻灯片   |
+| `listenhub slides list`      | 列出幻灯片   |
 
 ### 图片
 
-| 命令 | 说明 |
-|------|------|
-| `listenhub image create` | AI 生图 |
-| `listenhub image list` | 列出图片 |
+| 命令                       | 说明         |
+| -------------------------- | ------------ |
+| `listenhub image create`   | AI 生图      |
+| `listenhub image list`     | 列出图片     |
 | `listenhub image get <id>` | 查看图片详情 |
 
 ### 其他
 
-| 命令 | 说明 |
-|------|------|
-| `listenhub speakers list` | 列出可用声音 |
-| `listenhub creation get <id>` | 查看作品详情 |
-| `listenhub creation delete <id...>` | 删除作品 |
+| 命令                                | 说明         |
+| ----------------------------------- | ------------ |
+| `listenhub speakers list`           | 列出可用声音 |
+| `listenhub creation get <id>`       | 查看作品详情 |
+| `listenhub creation delete <id...>` | 删除作品     |
 
 每个命令都可以加 `--help` 查看完整选项。
 

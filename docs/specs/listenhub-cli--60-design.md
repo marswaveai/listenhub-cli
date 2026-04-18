@@ -21,9 +21,9 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 
 ## 涉及仓库
 
-| 仓库 | 改动范围 |
-|------|---------|
-| listenhub-cli | 全量工具链迁移 |
+| 仓库          | 改动范围           |
+| ------------- | ------------------ |
+| listenhub-cli | 全量工具链迁移     |
 | listenhub-sdk | vite-plus 版本升级 |
 
 ## 设计详情
@@ -35,6 +35,7 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 **目标**：`vp pack` 以 `source/cli.ts` 为入口（在 `vite.config.ts` 中配置），bundle 成单文件 `dist/cli.mjs`。
 
 变更点：
+
 - 入口文件 `source/cli.ts` 顶部的 `#!/usr/bin/env node` shebang 保留，vp pack 打包后自动带入
 - `package.json` 的 `bin` 改为 `"listenhub": "dist/cli.mjs"`
 - `package.json` 的 `files` 改为 `["dist"]`
@@ -48,6 +49,7 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 **目标**：`vp lint`（oxlint，Rust 实现）。
 
 变更点：
+
 - 删除 `xo.config.mjs`
 - 移除 xo 依赖
 - 现有自定义规则处理：
@@ -62,6 +64,7 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 **目标**：`vp fmt`（oxfmt，Rust 实现）。
 
 变更点：
+
 - 首次运行会重新格式化全部代码，产生一次性大 diff
 - 后续开发使用 `vp fmt` 保持格式一致
 
@@ -72,6 +75,7 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 **目标**：引入 vitest 框架，搭好骨架。
 
 变更点：
+
 - 创建 `vitest.config.ts`，参考 SDK 配置
 - 不在本次迁移中编写测试用例
 - `test` script 改为 `vp test run`
@@ -107,18 +111,22 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 ### 6. 依赖变更
 
 **新增 devDependencies**：
+
 - `vite-plus: ^0.1.18`
 - `vite: ^8.0.3`
 - `vitest: ^2.0.0`
 
 **降级 devDependencies**：
+
 - `typescript`：从 `^6.0.2` 降级到 `^5.9.3`，与 SDK 对齐。vite-plus-core 的 peer dependency 要求 `typescript: ^5.0.0`，CLI 当前的 6.x 不在范围内。同时移除 `package.json` 中的 `pnpm.overrides.typescript` override
 
 **移除 devDependencies**：
+
 - `xo`
 - `@sindresorhus/tsconfig` 保留（SDK 也在用，与 vp check 兼容）
 
 **运行时依赖不变**：
+
 - `@marswave/listenhub-sdk`
 - `commander`
 - `open`
@@ -149,13 +157,13 @@ ListenHub-SDK 已经在使用 vite-plus 作为统一工具链（构建、lint、
 所有 vp 子命令（pack、lint、fmt、check）的行为集中到 `vite.config.ts`，不依赖 CLI 参数传递：
 
 ```ts
-import { defineConfig } from 'vite-plus';
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   pack: {
-    entry: ['source/cli.ts'],
-    platform: 'node',
-    format: ['esm'],
+    entry: ["source/cli.ts"],
+    platform: "node",
+    format: ["esm"],
   },
   lint: {
     options: {
@@ -167,6 +175,7 @@ export default defineConfig({
 ```
 
 配置要点：
+
 - `pack.entry`：固定入口为 `source/cli.ts`，输出到 `dist/cli.mjs`
 - `pack.platform: 'node'`：Node 内置模块自动 external
 - `pack.format: ['esm']`：保持 ESM only，与现有 `"type": "module"` 一致
@@ -185,12 +194,12 @@ export default defineConfig({
 
 ## 风险与应对
 
-| 风险 | 影响 | 应对 |
-|------|------|------|
+| 风险                                                        | 影响 | 应对                                                              |
+| ----------------------------------------------------------- | ---- | ----------------------------------------------------------------- |
 | vp pack 打包 CLI 后运行时报错（动态 import、Node 内置模块） | 阻塞 | 配置 externals 排除 Node 内置模块；动态 import 用 `import()` 保留 |
-| oxlint 规则与现有代码冲突多 | 低 | `vp lint --fix` 自动修复大部分问题 |
-| oxfmt 格式化结果与 Prettier 差异大 | 低 | 一次性 diff，审核后接受即可 |
-| @sindresorhus/tsconfig 与 vp check 不兼容 | 低 | 移除 preset，手动配置 strict flags |
+| oxlint 规则与现有代码冲突多                                 | 低   | `vp lint --fix` 自动修复大部分问题                                |
+| oxfmt 格式化结果与 Prettier 差异大                          | 低   | 一次性 diff，审核后接受即可                                       |
+| @sindresorhus/tsconfig 与 vp check 不兼容                   | 低   | 移除 preset，手动配置 strict flags                                |
 
 ## 不做的事
 

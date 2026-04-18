@@ -2,15 +2,15 @@
   "name": "@marswave/listenhub-cli",
   "version": "0.0.3",
   "description": "Command-line interface for ListenHub",
+  "license": "MIT",
   "repository": "marswaveai/listenhub-cli",
-  "type": "module",
   "bin": {
     "listenhub": "dist/cli.mjs"
   },
   "files": [
     "dist"
   ],
-  "license": "MIT",
+  "type": "module",
   "scripts": {
     "dev": "vp pack --watch",
     "build": "vp pack",
