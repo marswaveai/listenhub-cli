@@ -1,9 +1,4 @@
-import type {
-	ImageSize,
-	Language,
-	ListenHubClient,
-	SlideAspectRatio,
-} from '@marswave/listenhub-sdk';
+import type {ImageSize, Language, ListenHubClient, SlideAspectRatio} from '@marswave/listenhub-sdk';
 import {inferLanguage} from '../_shared/language.js';
 import {printDetail, printJson, printTable} from '../_shared/output.js';
 import {pollUntilDone} from '../_shared/polling.js';

@@ -59,15 +59,8 @@ export function register(program: Command) {
 		.command('extend')
 		.description('Extend music from reference audio')
 		.requiredOption('--audio <path-or-url>', 'Reference audio file or URL')
-		.requiredOption(
-			'--model <version>',
-			'Model version (V4, V4_5, V4_5PLUS, V4_5ALL, V5, V5_5)',
-		)
-		.requiredOption(
-			'--continue-at <seconds>',
-			'Start extending from this time point',
-			Number,
-		)
+		.requiredOption('--model <version>', 'Model version (V4, V4_5, V4_5PLUS, V4_5ALL, V5, V5_5)')
+		.requiredOption('--continue-at <seconds>', 'Start extending from this time point', Number)
 		.option('--prompt <text>', 'Lyrics or description')
 		.option('--style <text>', 'Music style/mood')
 		.option('--title <text>', 'Track title')
@@ -75,16 +68,8 @@ export function register(program: Command) {
 		.option('--negative-tags <text>', 'Styles to exclude')
 		.option('--vocal-gender <gender>', 'Vocal gender (m or f)')
 		.option('--style-weight <weight>', 'Style guidance weight (0-1)', Number)
-		.option(
-			'--weirdness <weight>',
-			'Creativity/weirdness constraint (0-1)',
-			Number,
-		)
-		.option(
-			'--audio-weight <weight>',
-			'Input audio influence weight (0-1)',
-			Number,
-		)
+		.option('--weirdness <weight>', 'Creativity/weirdness constraint (0-1)', Number)
+		.option('--audio-weight <weight>', 'Input audio influence weight (0-1)', Number)
 		.option('--no-wait', 'Return immediately without polling')
 		.option('--timeout <seconds>', 'Polling timeout', Number, 600)
 		.option('-j, --json', 'Output JSON', false)

@@ -13,9 +13,7 @@ function getCredentialsPath(): string {
 	return path.join(getConfigDir(), 'credentials.json');
 }
 
-export async function loadCredentials(): Promise<
-	StoredCredentials | undefined
-> {
+export async function loadCredentials(): Promise<StoredCredentials | undefined> {
 	const filePath = getCredentialsPath();
 	try {
 		const raw = fs.readFileSync(filePath, 'utf8');

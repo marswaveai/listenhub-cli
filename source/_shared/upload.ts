@@ -4,14 +4,7 @@ import type {ListenHubClient} from '@marswave/listenhub-sdk';
 
 type FileAcceptType = 'audio' | 'image';
 
-const audioExtensions = new Set([
-	'.mp3',
-	'.wav',
-	'.flac',
-	'.m4a',
-	'.ogg',
-	'.aac',
-]);
+const audioExtensions = new Set(['.mp3', '.wav', '.flac', '.m4a', '.ogg', '.aac']);
 const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
 const maxSizeBytes: Record<FileAcceptType, number> = {
@@ -69,9 +62,7 @@ export async function resolveFileOrUrl(
 	const allowed = allowedExtensions(options.accept);
 	if (!allowed.has(ext)) {
 		const expected = [...allowed].join(', ');
-		throw new Error(
-			`Unsupported ${options.accept} format: ${ext} (expected: ${expected})`,
-		);
+		throw new Error(`Unsupported ${options.accept} format: ${ext} (expected: ${expected})`);
 	}
 
 	// Size check
@@ -80,9 +71,7 @@ export async function resolveFileOrUrl(
 	if (fileStat.size > maxBytes) {
 		const sizeMb = (fileStat.size / (1024 * 1024)).toFixed(1);
 		const maxMb = maxBytes / (1024 * 1024);
-		throw new Error(
-			`File too large: ${sizeMb} MB (max ${String(maxMb)} MB for ${options.accept})`,
-		);
+		throw new Error(`File too large: ${sizeMb} MB (max ${String(maxMb)} MB for ${options.accept})`);
 	}
 
 	// Get presigned upload URL
@@ -107,9 +96,7 @@ export async function resolveFileOrUrl(
 	});
 
 	if (!response.ok) {
-		throw new Error(
-			`Upload failed: ${String(response.status)} ${response.statusText}`,
-		);
+		throw new Error(`Upload failed: ${String(response.status)} ${response.statusText}`);
 	}
 
 	// Return a storage.googleapis.com URL so the server's resolveUploadUrl

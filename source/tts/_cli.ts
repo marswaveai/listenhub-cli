@@ -1,12 +1,7 @@
 import type {Command} from 'commander';
 import {getClient} from '../_shared/client.js';
 import {handleError} from '../_shared/output.js';
-import {
-	type TtsCreateOptions,
-	type TtsListOptions,
-	createTts,
-	listTts,
-} from './tts.js';
+import {type TtsCreateOptions, type TtsListOptions, createTts, listTts} from './tts.js';
 
 export function register(program: Command) {
 	const cmd = program.command('tts').description('Text-to-speech generation');

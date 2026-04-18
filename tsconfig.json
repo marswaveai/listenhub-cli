@@ -1,10 +1,8 @@
 {
-  "extends": "@sindresorhus/tsconfig",
-  "compilerOptions": {
-    "declaration": false,
-    "rootDir": ".",
-    "outDir": "distribution",
-    "types": ["node"]
-  },
-  "include": ["source"]
+	"extends": "@sindresorhus/tsconfig",
+	"compilerOptions": {
+		"rootDir": "source",
+		"types": ["node"]
+	},
+	"include": ["source"]
 }

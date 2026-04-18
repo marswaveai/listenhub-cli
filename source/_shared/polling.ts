@@ -115,9 +115,7 @@ export async function pollMusicTaskUntilDone(
 
 		if (task.status === 'failed') {
 			spinner?.fail('Music creation failed');
-			throw new Error(
-				`Music creation failed${task.errorMessage ? `: ${task.errorMessage}` : ''}`,
-			);
+			throw new Error(`Music creation failed${task.errorMessage ? `: ${task.errorMessage}` : ''}`);
 		}
 
 		if (spinner) {

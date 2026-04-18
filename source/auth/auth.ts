@@ -1,10 +1,6 @@
 import process from 'node:process';
 import {ListenHubClient} from '@marswave/listenhub-sdk';
-import {
-	deleteCredentials,
-	loadCredentials,
-	saveCredentials,
-} from '../_shared/credentials.js';
+import {deleteCredentials, loadCredentials, saveCredentials} from '../_shared/credentials.js';
 import {startCallbackServer} from './login-server.js';
 
 export async function runLogin(): Promise<void> {
@@ -92,9 +88,7 @@ export async function runStatus(json: boolean): Promise<void> {
 		}
 	} catch {
 		if (json) {
-			console.log(
-				JSON.stringify({loggedIn: false, error: 'Token expired or invalid'}),
-			);
+			console.log(JSON.stringify({loggedIn: false, error: 'Token expired or invalid'}));
 		} else {
 			console.log('Not logged in (token expired or invalid)');
 		}

@@ -246,10 +246,7 @@ export async function createExtend(
 	}
 }
 
-export async function listTasks(
-	client: ListenHubClient,
-	options: MusicListOptions,
-): Promise<void> {
+export async function listTasks(client: ListenHubClient, options: MusicListOptions): Promise<void> {
 	const {items} = await client.listMusicTasks({
 		page: options.page,
 		pageSize: options.pageSize,

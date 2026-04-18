@@ -40,49 +40,49 @@ listenhub tts create --text "Hello, world" --lang en
 
 ### Auth
 
-| Command | Description |
-|---------|-------------|
-| `listenhub auth login` | Log in via browser OAuth |
+| Command                 | Description               |
+| ----------------------- | ------------------------- |
+| `listenhub auth login`  | Log in via browser OAuth  |
 | `listenhub auth logout` | Log out and revoke tokens |
 | `listenhub auth status` | Show current login status |
 
 ### Music
 
-| Command | Description |
-|---------|-------------|
-| `listenhub music generate` | Generate music from a text prompt |
-| `listenhub music cover` | Create a cover from reference audio |
-| `listenhub music list` | List music tasks |
-| `listenhub music get <id>` | Get music task details |
+| Command                    | Description                         |
+| -------------------------- | ----------------------------------- |
+| `listenhub music generate` | Generate music from a text prompt   |
+| `listenhub music cover`    | Create a cover from reference audio |
+| `listenhub music list`     | List music tasks                    |
+| `listenhub music get <id>` | Get music task details              |
 
 ### Content Creation
 
-| Command | Description |
-|---------|-------------|
-| `listenhub podcast create` | Create a podcast episode |
-| `listenhub podcast list` | List podcast episodes |
-| `listenhub tts create` | Create text-to-speech audio |
-| `listenhub tts list` | List TTS creations |
-| `listenhub explainer create` | Create an explainer video |
-| `listenhub explainer list` | List explainer videos |
-| `listenhub slides create` | Create a slide deck |
-| `listenhub slides list` | List slide decks |
+| Command                      | Description                 |
+| ---------------------------- | --------------------------- |
+| `listenhub podcast create`   | Create a podcast episode    |
+| `listenhub podcast list`     | List podcast episodes       |
+| `listenhub tts create`       | Create text-to-speech audio |
+| `listenhub tts list`         | List TTS creations          |
+| `listenhub explainer create` | Create an explainer video   |
+| `listenhub explainer list`   | List explainer videos       |
+| `listenhub slides create`    | Create a slide deck         |
+| `listenhub slides list`      | List slide decks            |
 
 ### Images
 
-| Command | Description |
-|---------|-------------|
-| `listenhub image create` | Generate an AI image |
-| `listenhub image list` | List AI images |
-| `listenhub image get <id>` | Get image details |
+| Command                    | Description          |
+| -------------------------- | -------------------- |
+| `listenhub image create`   | Generate an AI image |
+| `listenhub image list`     | List AI images       |
+| `listenhub image get <id>` | Get image details    |
 
 ### Other
 
-| Command | Description |
-|---------|-------------|
-| `listenhub speakers list` | List available speakers |
-| `listenhub creation get <id>` | Get creation details |
-| `listenhub creation delete <id...>` | Delete creations |
+| Command                             | Description             |
+| ----------------------------------- | ----------------------- |
+| `listenhub speakers list`           | List available speakers |
+| `listenhub creation get <id>`       | Get creation details    |
+| `listenhub creation delete <id...>` | Delete creations        |
 
 Run `listenhub <command> --help` for full options.
 

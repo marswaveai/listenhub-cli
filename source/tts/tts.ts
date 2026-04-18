@@ -18,10 +18,7 @@ export type TtsCreateOptions = {
 	json: boolean;
 };
 
-export async function createTts(
-	client: ListenHubClient,
-	options: TtsCreateOptions,
-): Promise<void> {
+export async function createTts(client: ListenHubClient, options: TtsCreateOptions): Promise<void> {
 	const lang = options.lang ?? inferLanguage(options.text);
 	const speakers = await resolveSpeakers(client, {
 		speakerNames: options.speaker ? [options.speaker] : undefined,
@@ -73,10 +70,7 @@ export async function createTts(
 
 export type TtsListOptions = {page: number; pageSize: number; json: boolean};
 
-export async function listTts(
-	client: ListenHubClient,
-	options: TtsListOptions,
-): Promise<void> {
+export async function listTts(client: ListenHubClient, options: TtsListOptions): Promise<void> {
 	const {items} = await client.listTTS({
 		page: options.page,
 		pageSize: options.pageSize,

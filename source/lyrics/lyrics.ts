@@ -1,8 +1,4 @@
-import type {
-	ListenHubClient,
-	LyricsTaskDetail,
-	LyricsTaskStatus,
-} from '@marswave/listenhub-sdk';
+import type {ListenHubClient, LyricsTaskDetail, LyricsTaskStatus} from '@marswave/listenhub-sdk';
 import {printJson, printTable} from '../_shared/output.js';
 import {pollLyricsTaskUntilDone} from '../_shared/polling.js';
 

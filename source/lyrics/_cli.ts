@@ -33,10 +33,7 @@ export function register(program: Command) {
 		.description('List lyrics tasks')
 		.option('--page <n>', 'Page number', Number, 1)
 		.option('--page-size <n>', 'Items per page', Number, 20)
-		.option(
-			'--status <status>',
-			'Filter by status (pending, generating, success, failed)',
-		)
+		.option('--status <status>', 'Filter by status (pending, generating, success, failed)')
 		.option('-j, --json', 'Output JSON', false)
 		.action(async (options: LyricsListOptions) => {
 			try {

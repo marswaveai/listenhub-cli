@@ -35,9 +35,7 @@ export async function createImage(
 	const referenceImageUrls =
 		allReferences.length > 0
 			? await Promise.all(
-					allReferences.map(async (ref) =>
-						resolveFileOrUrl(client, ref, {accept: 'image'}),
-					),
+					allReferences.map(async (ref) => resolveFileOrUrl(client, ref, {accept: 'image'})),
 				)
 			: undefined;
 

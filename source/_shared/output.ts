@@ -18,9 +18,7 @@ export function printDetail(
 }
 
 export function printTable(headers: string[], rows: string[][]): void {
-	const widths = headers.map((h, i) =>
-		Math.max(h.length, ...rows.map((r) => (r[i] ?? '').length)),
-	);
+	const widths = headers.map((h, i) => Math.max(h.length, ...rows.map((r) => (r[i] ?? '').length)));
 	console.log('  ' + headers.map((h, i) => h.padEnd(widths[i]!)).join('  '));
 	for (const row of rows) {
 		console.log('  ' + row.map((c, i) => c.padEnd(widths[i]!)).join('  '));
@@ -58,8 +56,7 @@ export function handleError(error: unknown, json: boolean): never {
 
 	if (
 		error instanceof CliAuthError ||
-		(error instanceof ListenHubError &&
-			(error.status === 401 || error.status === 403))
+		(error instanceof ListenHubError && (error.status === 401 || error.status === 403))
 	) {
 		process.exit(2); // eslint-disable-line unicorn/no-process-exit
 	}

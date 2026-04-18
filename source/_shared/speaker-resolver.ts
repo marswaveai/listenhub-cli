@@ -33,9 +33,7 @@ export async function resolveSpeakers(
 	const resolved: string[] = [];
 
 	for (const name of options.speakerNames) {
-		const match = items.find(
-			(s) => s.name.toLowerCase() === name.toLowerCase(),
-		);
+		const match = items.find((s) => s.name.toLowerCase() === name.toLowerCase());
 		if (!match) {
 			const available = items.map((s) => s.name).join(', ');
 			throw new Error(`Speaker "${name}" not found. Available: ${available}`);

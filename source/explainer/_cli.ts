@@ -13,9 +13,7 @@ function collect(value: string, previous: string[]): string[] {
 }
 
 export function register(program: Command) {
-	const cmd = program
-		.command('explainer')
-		.description('Explainer video generation');
+	const cmd = program.command('explainer').description('Explainer video generation');
 
 	cmd
 		.command('create')

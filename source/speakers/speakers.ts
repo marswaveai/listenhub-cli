@@ -15,11 +15,6 @@ export async function listSpeakers(
 	}
 
 	const headers = ['Name', 'ID', 'Gender', 'Personality'];
-	const rows = items.map((s) => [
-		s.name,
-		s.speakerInnerId,
-		s.gender,
-		s.personality,
-	]);
+	const rows = items.map((s) => [s.name, s.speakerInnerId, s.gender, s.personality]);
 	printTable(headers, rows);
 }

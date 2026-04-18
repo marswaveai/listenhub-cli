@@ -1,43 +1,45 @@
 {
-  "name": "@marswave/listenhub-cli",
-  "version": "0.0.3",
-  "description": "Command-line interface for ListenHub",
-  "repository": "marswaveai/listenhub-cli",
-  "type": "module",
-  "bin": {
-    "listenhub": "distribution/source/cli.js"
-  },
-  "files": [
-    "distribution/source"
-  ],
-  "license": "MIT",
-  "scripts": {
-    "prepublishOnly": "pnpm run build",
-    "clean": "del-cli distribution",
-    "dev": "pnpm run clean && tsc --watch",
-    "build": "pnpm run clean && tsc && chmod +x distribution/source/cli.js",
-    "pretest": "pnpm run build",
-    "test": "xo"
-  },
-  "dependencies": {
-    "@marswave/listenhub-sdk": "^0.0.4",
-    "commander": "^14.0.3",
-    "open": "^10.0.0",
-    "ora": "^8.0.0"
-  },
-  "devDependencies": {
-    "@sindresorhus/tsconfig": "^8.1.0",
-    "@types/node": "^25.5.0",
-    "del-cli": "^7.0.0",
-    "typescript": "^6.0.2",
-    "xo": "^2.0.2"
-  },
-  "engines": {
-    "node": ">=20"
-  },
-  "pnpm": {
-    "overrides": {
-      "typescript": "^6.0.2"
-    }
-  }
+	"name": "@marswave/listenhub-cli",
+	"version": "0.0.3",
+	"description": "Command-line interface for ListenHub",
+	"license": "MIT",
+	"repository": "marswaveai/listenhub-cli",
+	"bin": {
+		"listenhub": "dist/cli.mjs"
+	},
+	"files": [
+		"dist"
+	],
+	"type": "module",
+	"scripts": {
+		"dev": "vp pack --watch",
+		"build": "vp pack",
+		"lint": "vp lint",
+		"lint:fix": "vp lint --fix",
+		"fmt": "vp fmt",
+		"fmt:check": "vp fmt --check",
+		"check": "vp check",
+		"test": "vp test run",
+		"test:watch": "vp test",
+		"ready": "vp check && vp test run",
+		"prepublishOnly": "pnpm run build"
+	},
+	"dependencies": {
+		"@marswave/listenhub-sdk": "^0.0.4",
+		"commander": "^14.0.3",
+		"open": "^10.0.0",
+		"ora": "^8.0.0"
+	},
+	"devDependencies": {
+		"@sindresorhus/tsconfig": "^8.1.0",
+		"@types/node": "^25.5.0",
+		"typescript": "^5.9.3",
+		"vite": "^8.0.3",
+		"vite-plus": "^0.1.18",
+		"vitest": "^4.0.0"
+	},
+	"engines": {
+		"node": ">=20"
+	},
+	"packageManager": "pnpm@10.32.1"
 }
