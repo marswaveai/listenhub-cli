@@ -36,7 +36,7 @@
     "typescript": "^5.9.3",
     "vite": "^8.0.3",
     "vite-plus": "^0.1.18",
-    "vitest": "^2.0.0"
+    "vitest": "^4.0.0"
   },
   "engines": {
     "node": ">=20"
