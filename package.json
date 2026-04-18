@@ -28,16 +28,12 @@
   "devDependencies": {
     "@sindresorhus/tsconfig": "^8.1.0",
     "@types/node": "^25.5.0",
-    "del-cli": "^7.0.0",
-    "typescript": "^6.0.2",
-    "xo": "^2.0.2"
+    "typescript": "^5.9.3",
+    "vite": "^8.0.3",
+    "vite-plus": "^0.1.18",
+    "vitest": "^2.0.0"
   },
   "engines": {
     "node": ">=20"
-  },
-  "pnpm": {
-    "overrides": {
-      "typescript": "^6.0.2"
-    }
   }
 }
