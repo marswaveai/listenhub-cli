@@ -46,9 +46,9 @@ source/video/video.ts  — 业务逻辑
 
 **输入模式互斥规则（CLI 端校验，不满足直接报错退出）：**
 
-- **帧控制模式**（`--first-frame`/`--last-frame`）与**参考模式**（`--reference-image`/`--reference-video`）不可混用。
+- **帧控制模式**（`--first-frame`/`--last-frame`）与**参考模式**（`--reference-image`/`--reference-video`/`--reference-audio`）不可混用。
 - `--last-frame` 必须搭配 `--first-frame`。
-- `--reference-audio` 不能单独使用，必须搭配 prompt 或其他视觉素材。
+- `--reference-audio` 不能单独使用，必须搭配 `--reference-image` 或 `--reference-video`（纯 prompt + audio 不合法）。
 - 数量上限：image ≤ 9，video ≤ 3，audio ≤ 3。
 
 **URL 约束：** 所有 `<path-or-url>` 参数仅接受本地文件路径或 ListenHub 平台资产 URL（GCS bucket / CDN）。外部 URL（如 `https://example.com/v.mp4`）会被后端拒绝。
@@ -112,11 +112,20 @@ source/video/video.ts  — 业务逻辑
 
 ## 上传扩展
 
-`resolveFileOrUrl` 需要新增 `video` 文件类型：
+`resolveFileOrUrl` 签名扩展为支持 category override：
+
+```ts
+resolveFileOrUrl(client, input, { accept: 'video', category: 'episode' })
+```
+
+**新增 `video` 文件类型：**
 - 允许后缀：`.mp4`、`.mov`、`.webm`
 - 最大体积：100 MB
 - MIME：`video/mp4`、`video/quicktime`、`video/webm`
-- category：`banana`（同 image）
+
+**video 命令的 upload category：** 所有素材（image/video/audio）统一使用 `category=episode`（private upload）。后端 `resolveMediaUrl` 对 private bucket URL 通过 `UserFileDao` 校验所有权后签名，这是最稳妥的路径。现有 image 命令继续用 `category=banana` 不受影响。
+
+> 技术原因：后端 `resolveMediaUrl` 只接受三种 URL —— public CDN、private bucket（需 UserFileDao 记录）、已签名 URL。虽然 banana public bucket 碰巧在白名单中，但 private upload 语义更明确且不依赖隐式行为。
 
 ## 轮询策略
 
@@ -137,8 +146,8 @@ source/video/video.ts  — 业务逻辑
 | `--reference-video` 存在但缺 `--input-video-duration` | `--input-video-duration is required when using --reference-video` |
 | `--input-video-duration` 不在 2–15 | `Input video duration must be between 2 and 15 seconds` |
 | `--last-frame` 无 `--first-frame` | `--last-frame requires --first-frame` |
-| 帧控制 + 参考混用 | `Cannot mix frame mode (--first-frame/--last-frame) with reference mode (--reference-image/--reference-video)` |
-| `--reference-audio` 无其他视觉素材 | `--reference-audio cannot be used alone` |
+| 帧控制 + 参考混用 | `Cannot mix frame mode (--first-frame/--last-frame) with reference mode (--reference-image/--reference-video/--reference-audio)` |
+| `--reference-audio` 无 image/video 素材 | `--reference-audio requires --reference-image or --reference-video` |
 | `--reference-image` 超过 9 | `Too many reference images (max 9)` |
 | `--reference-video` 超过 3 | `Too many reference videos (max 3)` |
 | `--reference-audio` 超过 3 | `Too many reference audios (max 3)` |
