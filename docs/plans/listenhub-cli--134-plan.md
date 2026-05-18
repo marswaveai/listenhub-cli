@@ -274,7 +274,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {getOpenAPIClient} from '../../source/openapi/client.js';
+
+const mockOpenAPIClient = vi.fn();
+vi.mock('@marswave/listenhub-sdk', () => ({
+	OpenAPIClient: mockOpenAPIClient,
+}));
 
 describe('getOpenAPIClient', () => {
 	let tmpDir: string;
@@ -283,6 +287,8 @@ describe('getOpenAPIClient', () => {
 		tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lh-cli-test-'));
 		vi.stubEnv('XDG_CONFIG_HOME', tmpDir);
 		vi.stubEnv('LISTENHUB_API_KEY', '');
+		mockOpenAPIClient.mockClear();
+		mockOpenAPIClient.mockImplementation((opts: {apiKey: string}) => ({apiKey: opts.apiKey}));
 	});
 
 	afterEach(() => {
@@ -291,16 +297,18 @@ describe('getOpenAPIClient', () => {
 	});
 
 	it('throws when no key is configured', async () => {
+		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
 		await expect(getOpenAPIClient()).rejects.toThrow(/API Key/);
 	});
 
-	it('uses LISTENHUB_API_KEY env var', async () => {
+	it('uses LISTENHUB_API_KEY env var and passes it to OpenAPIClient', async () => {
 		vi.stubEnv('LISTENHUB_API_KEY', 'lh_sk_env_secret');
-		const client = await getOpenAPIClient();
-		expect(client).toBeDefined();
+		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
+		await getOpenAPIClient();
+		expect(mockOpenAPIClient).toHaveBeenCalledWith({apiKey: 'lh_sk_env_secret'});
 	});
 
-	it('uses config file when env var is absent', async () => {
+	it('uses config file when env var is absent and passes file key', async () => {
 		const dir = path.join(tmpDir, 'listenhub');
 		fs.mkdirSync(dir, {recursive: true});
 		fs.writeFileSync(
@@ -308,8 +316,9 @@ describe('getOpenAPIClient', () => {
 			JSON.stringify({apiKey: 'lh_sk_file_secret'}),
 			{mode: 0o600},
 		);
-		const client = await getOpenAPIClient();
-		expect(client).toBeDefined();
+		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
+		await getOpenAPIClient();
+		expect(mockOpenAPIClient).toHaveBeenCalledWith({apiKey: 'lh_sk_file_secret'});
 	});
 
 	it('env var takes priority over config file', async () => {
@@ -321,8 +330,9 @@ describe('getOpenAPIClient', () => {
 			JSON.stringify({apiKey: 'lh_sk_file_lower'}),
 			{mode: 0o600},
 		);
-		const client = await getOpenAPIClient();
-		expect(client).toBeDefined();
+		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
+		await getOpenAPIClient();
+		expect(mockOpenAPIClient).toHaveBeenCalledWith({apiKey: 'lh_sk_env_priority'});
 	});
 });
 ```
@@ -432,9 +442,7 @@ describe('pollOpenAPI', () => {
 	});
 
 	it('throws CliTimeoutError when timeout exceeded', async () => {
-		let callCount = 0;
 		const getStatus = vi.fn().mockImplementation(async () => {
-			callCount++;
 			return {processStatus: 'processing'};
 		});
 
@@ -445,8 +453,14 @@ describe('pollOpenAPI', () => {
 			options: {timeout: 20, json: true},
 		});
 
+		// Advance past both poll intervals (2 attempts × 10s = 20s)
+		// After first getStatus() resolves (not done), sleep(10000) starts.
+		// Advance timers to trigger each sleep resolution.
+		await vi.advanceTimersByTimeAsync(10_000); // triggers first sleep
+		await vi.advanceTimersByTimeAsync(10_000); // triggers second sleep
+
 		await expect(promise).rejects.toThrow(/Timed out/);
-		expect(callCount).toBe(2); // 20s / 10s interval = 2 attempts
+		expect(getStatus).toHaveBeenCalledTimes(2); // 20s / 10s interval = 2 attempts
 	});
 });
 ```
@@ -1597,21 +1611,27 @@ git commit -m "feat(openapi): add podcast create/get/text-content/generate-audio
 - Create: `source/openapi/storybook.ts`
 - Modify: `source/openapi/_cli.ts` (one-line import + call)
 
-**Pattern:** Self-registering module. Exports `register(openapi: Command)`. Uses `.option()` for repeatable `--speaker-id` with non-empty validation in implementation. Add `registerStorybook(openapi)` call in `_cli.ts`.
+**Pattern:** Self-registering module — same as Tasks 7–10. `storybook.ts` exports `register(openapi: Command)` which adds all subcommands. `_cli.ts` only adds one import + one call.
 
-- [ ] **Step 1: Implement storybook module**
+- [ ] **Step 1: Implement storybook module with self-registration**
 
 Create `source/openapi/storybook.ts`:
 
 ```ts
+import type {Command} from 'commander';
 import type {OpenAPIClient, OpenAPIStorybookDetail} from '@marswave/listenhub-sdk';
-import {printDetail, printJson} from '../_shared/output.js';
+import {handleError, printDetail, printJson} from '../_shared/output.js';
+import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
-export type StorybookCreateOptions = {
-	sourceUrl?: string[];
-	sourceText?: string[];
-	speakerId?: string[];
+function collect(value: string, previous: string[]): string[] {
+	return [...previous, value];
+}
+
+type StorybookCreateOptions = {
+	sourceUrl: string[];
+	sourceText: string[];
+	speakerId: string[];
 	skipAudio: boolean;
 	style?: string;
 	mode: string;
@@ -1621,16 +1641,16 @@ export type StorybookCreateOptions = {
 	json: boolean;
 };
 
-export async function createStorybook(
+async function createStorybook(
 	client: OpenAPIClient,
 	options: StorybookCreateOptions,
 ): Promise<void> {
 	const sources = [
-		...(options.sourceUrl ?? []).map((content) => ({type: 'url' as const, content})),
-		...(options.sourceText ?? []).map((content) => ({type: 'text' as const, content})),
+		...options.sourceUrl.map((content) => ({type: 'url' as const, content})),
+		...options.sourceText.map((content) => ({type: 'text' as const, content})),
 	];
 
-	const speakers = (options.speakerId ?? []).map((id) => ({speakerId: id}));
+	const speakers = options.speakerId.map((id) => ({speakerId: id}));
 
 	const {episodeId} = await client.createStorybook({
 		sources,
@@ -1672,7 +1692,7 @@ export async function createStorybook(
 	}
 }
 
-export async function getStorybook(
+async function getStorybook(
 	client: OpenAPIClient,
 	episodeId: string,
 	json: boolean,
@@ -1696,7 +1716,7 @@ export async function getStorybook(
 	]);
 }
 
-export async function generateStorybookVideo(
+async function generateStorybookVideo(
 	client: OpenAPIClient,
 	episodeId: string,
 	json: boolean,
@@ -1709,20 +1729,8 @@ export async function generateStorybookVideo(
 		console.log(`✓ Video generation ${result.success ? 'started' : 'failed'}: ${episodeId}`);
 	}
 }
-```
 
-- [ ] **Step 2: Register storybook commands in `_cli.ts`**
-
-Add import:
-
-```ts
-import {createStorybook, generateStorybookVideo, getStorybook} from './storybook.js';
-```
-
-Add command registrations:
-
-```ts
-	// --- Storybook ---
+export function register(openapi: Command) {
 	const storybook = openapi.command('storybook').description('Storybook/explainer generation');
 
 	storybook
@@ -1772,6 +1780,15 @@ Add command registrations:
 				handleError(error, options.json);
 			}
 		});
+}
+```
+
+- [ ] **Step 2: Add to `_cli.ts` dispatcher**
+
+```ts
+import {register as registerStorybook} from './storybook.js';
+// inside register():
+registerStorybook(openapi);
 ```
 
 - [ ] **Step 3: Build and lint**
@@ -1796,19 +1813,25 @@ git commit -m "feat(openapi): add storybook create/get/generate-video commands"
 - Create: `source/openapi/image.ts`
 - Modify: `source/openapi/_cli.ts` (one-line import + call)
 
-**Pattern:** Self-registering module. Exports `register(openapi: Command)`. Add `registerImage(openapi)` call in `_cli.ts`.
+**Pattern:** Self-registering module — same as Tasks 7–10. `image.ts` exports `register(openapi: Command)` which adds the `image create` subcommand. `_cli.ts` only adds one import + one call.
 
-- [ ] **Step 1: Implement image module**
+- [ ] **Step 1: Implement image module with self-registration**
 
 Create `source/openapi/image.ts`:
 
 ```ts
 import fs from 'node:fs';
 import path from 'node:path';
+import type {Command} from 'commander';
 import type {OpenAPIClient} from '@marswave/listenhub-sdk';
-import {printJson} from '../_shared/output.js';
+import {handleError, printJson} from '../_shared/output.js';
+import {getOpenAPIClient} from './client.js';
 
-export type ImageCreateOptions = {
+function collect(value: string, previous: string[]): string[] {
+	return [...previous, value];
+}
+
+type ImageCreateOptions = {
 	prompt: string;
 	provider: string;
 	model?: string;
@@ -1849,7 +1872,7 @@ function resolveReference(ref: string): {fileData?: {fileUri: string; mimeType: 
 	return {inlineData: {data, mimeType}};
 }
 
-export async function createImage(
+async function createImage(
 	client: OpenAPIClient,
 	options: ImageCreateOptions,
 ): Promise<void> {
@@ -1873,20 +1896,8 @@ export async function createImage(
 		console.log(`  ${JSON.stringify(result, null, 2)}`);
 	}
 }
-```
 
-- [ ] **Step 2: Register image command in `_cli.ts`**
-
-Add import:
-
-```ts
-import {createImage} from './image.js';
-```
-
-Add command registration:
-
-```ts
-	// --- Image ---
+export function register(openapi: Command) {
 	const image = openapi.command('image').description('AI image generation');
 
 	image
@@ -1907,6 +1918,15 @@ Add command registration:
 				handleError(error, options.json);
 			}
 		});
+}
+```
+
+- [ ] **Step 2: Add to `_cli.ts` dispatcher**
+
+```ts
+import {register as registerImage} from './image.js';
+// inside register():
+registerImage(openapi);
 ```
 
 - [ ] **Step 3: Build and lint**
@@ -1931,23 +1951,29 @@ git commit -m "feat(openapi): add image create command with base64 reference sup
 - Create: `source/openapi/video.ts`
 - Modify: `source/openapi/_cli.ts` (one-line import + call)
 
-**Pattern:** Self-registering module. Exports `register(openapi: Command)`. Add `registerVideo(openapi)` call in `_cli.ts`. Video only accepts URLs (no local file upload), so no `resolveFileOrUrl()` needed.
+**Pattern:** Self-registering module — same as Tasks 7–10. `video.ts` exports `register(openapi: Command)` which adds all video subcommands. `_cli.ts` only adds one import + one call. Video only accepts URLs (no local file upload).
 
-- [ ] **Step 1: Implement video module**
+- [ ] **Step 1: Implement video module with self-registration**
 
 Create `source/openapi/video.ts`:
 
 ```ts
+import type {Command} from 'commander';
 import type {
 	OpenAPIClient,
 	OpenAPICreateVideoGenerationParams,
 	OpenAPIVideoGenerationTaskDetail,
 	OpenAPIVideoGenerationTaskStatus,
 } from '@marswave/listenhub-sdk';
-import {printDetail, printJson, printTable} from '../_shared/output.js';
+import {handleError, printDetail, printJson, printTable} from '../_shared/output.js';
+import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
-export type VideoCreateOptions = {
+function collect(value: string, previous: string[]): string[] {
+	return [...previous, value];
+}
+
+type VideoCreateOptions = {
 	prompt: string;
 	firstFrame?: string;
 	lastFrame?: string;
@@ -1966,14 +1992,14 @@ export type VideoCreateOptions = {
 	json: boolean;
 };
 
-export type VideoListOptions = {
+type VideoListOptions = {
 	page: number;
 	pageSize: number;
 	status?: string;
 	json: boolean;
 };
 
-export type VideoEstimateOptions = {
+type VideoEstimateOptions = {
 	model: string;
 	resolution: string;
 	duration: number;
@@ -2044,7 +2070,7 @@ function validateCreateOptions(options: VideoCreateOptions): void {
 	}
 }
 
-export async function createVideo(
+async function createVideo(
 	client: OpenAPIClient,
 	options: VideoCreateOptions,
 ): Promise<void> {
@@ -2120,7 +2146,7 @@ export async function createVideo(
 	}
 }
 
-export async function getVideo(
+async function getVideo(
 	client: OpenAPIClient,
 	taskId: string,
 	json: boolean,
@@ -2146,7 +2172,7 @@ export async function getVideo(
 	]);
 }
 
-export async function listVideos(
+async function listVideos(
 	client: OpenAPIClient,
 	options: VideoListOptions,
 ): Promise<void> {
@@ -2172,7 +2198,7 @@ export async function listVideos(
 	printTable(headers, rows);
 }
 
-export async function estimateCredits(
+async function estimateCredits(
 	client: OpenAPIClient,
 	options: VideoEstimateOptions,
 ): Promise<void> {
@@ -2199,20 +2225,8 @@ export async function estimateCredits(
 		['Credits:', result.credits],
 	]);
 }
-```
 
-- [ ] **Step 2: Register video commands in `_cli.ts`**
-
-Add import:
-
-```ts
-import {createVideo, estimateCredits, getVideo, listVideos} from './video.js';
-```
-
-Add command registrations:
-
-```ts
-	// --- Video ---
+export function register(openapi: Command) {
 	const video = openapi.command('video').description('Video generation');
 
 	video
@@ -2290,6 +2304,15 @@ Add command registrations:
 				handleError(error, options.json);
 			}
 		});
+}
+```
+
+- [ ] **Step 2: Add to `_cli.ts` dispatcher**
+
+```ts
+import {register as registerVideo} from './video.js';
+// inside register():
+registerVideo(openapi);
 ```
 
 - [ ] **Step 3: Build and lint**
@@ -2315,18 +2338,20 @@ git commit -m "feat(openapi): add video create/get/list/estimate commands"
 - Create: `source/openapi/subscription.ts`
 - Modify: `source/openapi/_cli.ts` (two imports + calls)
 
-**Pattern:** Self-registering modules. Each exports `register(openapi: Command)`. Add `registerContent(openapi)` and `registerSubscription(openapi)` calls in `_cli.ts`.
+**Pattern:** Self-registering modules — same as Tasks 7–10. Each file exports `register(openapi: Command)`. `_cli.ts` adds two imports + two calls.
 
-- [ ] **Step 1: Implement content module**
+- [ ] **Step 1: Implement content module with self-registration**
 
 Create `source/openapi/content.ts`:
 
 ```ts
+import type {Command} from 'commander';
 import type {OpenAPIClient, OpenAPIContentExtractDetail} from '@marswave/listenhub-sdk';
-import {printDetail, printJson} from '../_shared/output.js';
+import {handleError, printDetail, printJson} from '../_shared/output.js';
+import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
-export type ContentExtractOptions = {
+type ContentExtractOptions = {
 	url: string;
 	summarize: boolean;
 	maxLength?: number;
@@ -2335,7 +2360,7 @@ export type ContentExtractOptions = {
 	json: boolean;
 };
 
-export async function extractContent(
+async function extractContent(
 	client: OpenAPIClient,
 	options: ContentExtractOptions,
 ): Promise<void> {
@@ -2378,7 +2403,7 @@ export async function extractContent(
 	}
 }
 
-export async function getContentExtract(
+async function getContentExtract(
 	client: OpenAPIClient,
 	taskId: string,
 	json: boolean,
@@ -2399,54 +2424,8 @@ export async function getContentExtract(
 		console.log(`\n${detail.data.content}`);
 	}
 }
-```
 
-- [ ] **Step 2: Implement subscription module**
-
-Create `source/openapi/subscription.ts`:
-
-```ts
-import type {OpenAPIClient} from '@marswave/listenhub-sdk';
-import {printDetail, printJson} from '../_shared/output.js';
-
-export async function showSubscription(
-	client: OpenAPIClient,
-	json: boolean,
-): Promise<void> {
-	const info = await client.getSubscription();
-
-	if (json) {
-		printJson(info);
-		return;
-	}
-
-	printDetail('Subscription', [
-		['Credits:', info.totalAvailableCredits],
-		['Monthly:', info.usageAvailableMonthlyCredits !== undefined
-			? `${String(info.usageAvailableMonthlyCredits)}/${String(info.usageTotalMonthlyCredits)}`
-			: undefined],
-		['Permanent:', info.usageAvailablePermanentCredits],
-		['Plan:', info.subscriptionPlan?.name],
-		['Expires:', info.subscriptionExpiresAt
-			? new Date(info.subscriptionExpiresAt).toISOString().slice(0, 10)
-			: undefined],
-	]);
-}
-```
-
-- [ ] **Step 3: Register both in `_cli.ts`**
-
-Add imports:
-
-```ts
-import {extractContent, getContentExtract} from './content.js';
-import {showSubscription} from './subscription.js';
-```
-
-Add command registrations:
-
-```ts
-	// --- Content Extract ---
+export function register(openapi: Command) {
 	const content = openapi.command('content').description('Content extraction');
 
 	content
@@ -2479,8 +2458,44 @@ Add command registrations:
 				handleError(error, options.json);
 			}
 		});
+}
+```
 
-	// --- Subscription ---
+- [ ] **Step 2: Implement subscription module with self-registration**
+
+Create `source/openapi/subscription.ts`:
+
+```ts
+import type {Command} from 'commander';
+import type {OpenAPIClient} from '@marswave/listenhub-sdk';
+import {handleError, printDetail, printJson} from '../_shared/output.js';
+import {getOpenAPIClient} from './client.js';
+
+async function showSubscription(
+	client: OpenAPIClient,
+	json: boolean,
+): Promise<void> {
+	const info = await client.getSubscription();
+
+	if (json) {
+		printJson(info);
+		return;
+	}
+
+	printDetail('Subscription', [
+		['Credits:', info.totalAvailableCredits],
+		['Monthly:', info.usageAvailableMonthlyCredits !== undefined
+			? `${String(info.usageAvailableMonthlyCredits)}/${String(info.usageTotalMonthlyCredits)}`
+			: undefined],
+		['Permanent:', info.usageAvailablePermanentCredits],
+		['Plan:', info.subscriptionPlan?.name],
+		['Expires:', info.subscriptionExpiresAt
+			? new Date(info.subscriptionExpiresAt).toISOString().slice(0, 10)
+			: undefined],
+	]);
+}
+
+export function register(openapi: Command) {
 	openapi
 		.command('subscription')
 		.description('Show subscription and credits info')
@@ -2493,6 +2508,17 @@ Add command registrations:
 				handleError(error, options.json);
 			}
 		});
+}
+```
+
+- [ ] **Step 3: Add both to `_cli.ts` dispatcher**
+
+```ts
+import {register as registerContent} from './content.js';
+import {register as registerSubscription} from './subscription.js';
+// inside register():
+registerContent(openapi);
+registerSubscription(openapi);
 ```
 
 - [ ] **Step 4: Build and lint**
@@ -2524,7 +2550,6 @@ Create `tests/openapi/commands.test.ts`:
 ```ts
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-// Mock the client factory to return a mock OpenAPIClient
 const mockClient = {
 	listSpeakers: vi.fn(),
 	speech: vi.fn(),
@@ -2536,6 +2561,7 @@ const mockClient = {
 	generatePodcastAudio: vi.fn(),
 	createStorybook: vi.fn(),
 	getStorybook: vi.fn(),
+	generateStorybookVideo: vi.fn(),
 	createImage: vi.fn(),
 	createVideoGeneration: vi.fn(),
 	getVideoGenerationTask: vi.fn(),
@@ -2554,64 +2580,171 @@ vi.mock('ora', () => ({
 	default: () => ({start: () => ({text: '', succeed: vi.fn(), fail: vi.fn()})}),
 }));
 
-describe('openapi speakers list', () => {
-	it('passes language filter to SDK', async () => {
-		mockClient.listSpeakers.mockResolvedValue({items: [{name: 'Alice', speakerId: 'sp1', gender: 'female', language: 'en'}]});
-		const {listSpeakers} = await import('../../source/openapi/speakers.js');
-		// Note: import the internal function, not the register
-		// Test that correct params are passed
-		expect(mockClient.listSpeakers).toBeDefined();
+beforeEach(() => {
+	vi.clearAllMocks();
+});
+
+describe('speakers list', () => {
+	it('passes language filter to SDK and formats output', async () => {
+		mockClient.listSpeakers.mockResolvedValue({
+			items: [{name: 'Alice', speakerId: 'sp1', gender: 'female', language: 'en'}],
+		});
+
+		const mod = await import('../../source/openapi/speakers.js');
+		// Call the internal function by programmatically invoking the command
+		// Since register adds commands, we test via the exported register:
+		const {Command} = await import('commander');
+		const parent = new Command();
+		mod.register(parent);
+
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+		await parent.parseAsync(['speakers', 'list', '--language', 'en', '-j'], {from: 'user'});
+
+		expect(mockClient.listSpeakers).toHaveBeenCalledWith({language: 'en'});
+		expect(consoleSpy).toHaveBeenCalled();
+		const output = JSON.parse(consoleSpy.mock.calls[0]![0] as string);
+		expect(output).toEqual([{name: 'Alice', speakerId: 'sp1', gender: 'female', language: 'en'}]);
+		consoleSpy.mockRestore();
 	});
 });
 
-describe('openapi speech', () => {
-	it('passes script and speakerId to SDK', async () => {
-		mockClient.speech.mockResolvedValue({audioUrl: 'https://x', audioDuration: 10, credits: 5});
-		// Verify param mapping
-		expect(mockClient.speech).toBeDefined();
-	});
-});
-
-describe('openapi podcast create', () => {
-	it('rejects empty speaker-id', async () => {
-		const {default: podcast} = await import('../../source/openapi/podcast.js');
-		// Validation should throw before SDK call
-		expect(mockClient.createPodcast).toBeDefined();
-	});
-});
-
-describe('openapi video create', () => {
+describe('video create validation', () => {
 	it('rejects mixing frame mode and reference mode', async () => {
-		// Validation logic test
-		expect(true).toBe(true);
+		const mod = await import('../../source/openapi/video.js');
+		const {Command} = await import('commander');
+		const parent = new Command();
+		mod.register(parent);
+
+		const stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+		await parent.parseAsync([
+			'video', 'create',
+			'--prompt', 'test',
+			'--first-frame', 'http://img.png',
+			'--reference-image', 'http://ref.png',
+			'-j',
+		], {from: 'user'});
+
+		// The error should be thrown/handled before SDK call
+		expect(mockClient.createVideoGeneration).not.toHaveBeenCalled();
+		stderrSpy.mockRestore();
+		exitSpy.mockRestore();
 	});
 
-	it('passes content array correctly', async () => {
+	it('passes content array correctly to SDK', async () => {
 		mockClient.createVideoGeneration.mockResolvedValue({taskId: 'v1'});
-		expect(mockClient.createVideoGeneration).toBeDefined();
+
+		const mod = await import('../../source/openapi/video.js');
+		const {Command} = await import('commander');
+		const parent = new Command();
+		mod.register(parent);
+
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+		await parent.parseAsync([
+			'video', 'create',
+			'--prompt', 'a sunset',
+			'--no-wait',
+			'-j',
+		], {from: 'user'});
+
+		expect(mockClient.createVideoGeneration).toHaveBeenCalledTimes(1);
+		const params = mockClient.createVideoGeneration.mock.calls[0]![0];
+		expect(params.content).toEqual([{type: 'text', text: 'a sunset'}]);
+		consoleSpy.mockRestore();
 	});
 });
 
-describe('openapi content extract', () => {
+describe('content extract', () => {
 	it('passes url and options to SDK', async () => {
 		mockClient.createContentExtract.mockResolvedValue({taskId: 't1'});
-		expect(mockClient.createContentExtract).toBeDefined();
+
+		const mod = await import('../../source/openapi/content.js');
+		const {Command} = await import('commander');
+		const parent = new Command();
+		mod.register(parent);
+
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+		await parent.parseAsync([
+			'content', 'extract',
+			'--url', 'https://example.com',
+			'--summarize',
+			'--no-wait',
+			'-j',
+		], {from: 'user'});
+
+		expect(mockClient.createContentExtract).toHaveBeenCalledWith({
+			source: {type: 'url', uri: 'https://example.com'},
+			options: {summarize: true},
+		});
+
+		const output = JSON.parse(consoleSpy.mock.calls[0]![0] as string);
+		expect(output).toEqual({taskId: 't1'});
+		consoleSpy.mockRestore();
 	});
 });
 
-describe('openapi subscription', () => {
-	it('returns subscription info', async () => {
-		mockClient.getSubscription.mockResolvedValue({totalAvailableCredits: 100});
-		expect(mockClient.getSubscription).toBeDefined();
+describe('subscription', () => {
+	it('outputs JSON with credits info', async () => {
+		mockClient.getSubscription.mockResolvedValue({
+			totalAvailableCredits: 100,
+			usageAvailableMonthlyCredits: 50,
+			usageTotalMonthlyCredits: 200,
+		});
+
+		const mod = await import('../../source/openapi/subscription.js');
+		const {Command} = await import('commander');
+		const parent = new Command();
+		mod.register(parent);
+
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+		await parent.parseAsync(['subscription', '-j'], {from: 'user'});
+
+		expect(mockClient.getSubscription).toHaveBeenCalledTimes(1);
+		const output = JSON.parse(consoleSpy.mock.calls[0]![0] as string);
+		expect(output.totalAvailableCredits).toBe(100);
+		consoleSpy.mockRestore();
+	});
+});
+
+describe('storybook create', () => {
+	it('passes sources and speakers to SDK', async () => {
+		mockClient.createStorybook.mockResolvedValue({episodeId: 'ep1'});
+
+		const mod = await import('../../source/openapi/storybook.js');
+		const {Command} = await import('commander');
+		const parent = new Command();
+		mod.register(parent);
+
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+		await parent.parseAsync([
+			'storybook', 'create',
+			'--source-url', 'https://a.com',
+			'--source-text', 'hello',
+			'--speaker-id', 'sp1',
+			'--mode', 'story',
+			'--no-wait',
+			'-j',
+		], {from: 'user'});
+
+		expect(mockClient.createStorybook).toHaveBeenCalledWith({
+			sources: [
+				{type: 'url', content: 'https://a.com'},
+				{type: 'text', content: 'hello'},
+			],
+			speakers: [{speakerId: 'sp1'}],
+			skipAudio: undefined,
+			style: undefined,
+			language: undefined,
+			mode: 'story',
+		});
+
+		const output = JSON.parse(consoleSpy.mock.calls[0]![0] as string);
+		expect(output).toEqual({episodeId: 'ep1'});
+		consoleSpy.mockRestore();
 	});
 });
 ```
-
-Note: This is a scaffold. The implementing agent should expand each test to actually call the implementation functions with mock clients and verify:
-1. Correct SDK method is called with expected params
-2. Output format matches spec (JSON mode vs human readable)
-3. Validation errors throw before SDK call
-4. Polling conditions are checked correctly
 
 - [ ] **Step 2: Run tests**
 
