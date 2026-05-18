@@ -9,6 +9,7 @@ import type {
 	VideoGenerationResolution,
 	VideoGenerationTaskStatus,
 } from '@marswave/listenhub-sdk';
+import {getMp4Duration} from '../_shared/mp4-duration.js';
 import {printDetail, printJson, printTable} from '../_shared/output.js';
 import {pollVideoTaskUntilDone} from '../_shared/polling.js';
 import {resolveFileOrUrl} from '../_shared/upload.js';
@@ -86,7 +87,12 @@ function validateCreateOptions(options: VideoCreateOptions): void {
 	}
 
 	if (options.referenceVideo.length > 0 && options.inputVideoDuration === undefined) {
-		throw new Error('--input-video-duration is required when using --reference-video');
+		const hasLocalVideo = options.referenceVideo.some(
+			(v) => !v.startsWith('http://') && !v.startsWith('https://'),
+		);
+		if (!hasLocalVideo) {
+			throw new Error('--input-video-duration is required when using --reference-video with URLs');
+		}
 	}
 
 	if (options.inputVideoDuration !== undefined && options.referenceVideo.length === 0) {
@@ -143,6 +149,16 @@ export async function createVideo(
 	client: ListenHubClient,
 	options: VideoCreateOptions,
 ): Promise<void> {
+	if (options.referenceVideo.length > 0 && options.inputVideoDuration === undefined) {
+		const localVideo = options.referenceVideo.find(
+			(v) => !v.startsWith('http://') && !v.startsWith('https://'),
+		);
+		if (localVideo) {
+			const filePath = path.resolve(localVideo.trim());
+			options.inputVideoDuration = await getMp4Duration(filePath);
+		}
+	}
+
 	validateCreateOptions(options);
 
 	const content: VideoContentItem[] = [{type: 'text', text: options.prompt}];
