@@ -155,7 +155,14 @@ export async function createVideo(
 		);
 		if (localVideo) {
 			const filePath = path.resolve(localVideo.trim());
-			options.inputVideoDuration = await getMp4Duration(filePath);
+			const detected = await getMp4Duration(filePath);
+			if (detected >= 2 && detected <= 15) {
+				options.inputVideoDuration = detected;
+			} else {
+				throw new Error(
+					`Reference video is ${String(detected)}s long; --input-video-duration (2-15) is required to specify how much to use`,
+				);
+			}
 		}
 	}
 
