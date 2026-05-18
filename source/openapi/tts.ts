@@ -21,14 +21,8 @@ type SpeechOptions = {
 	json: boolean;
 };
 
-async function runTts(client: OpenAPIClient, options: TtsOptions): Promise<void> {
-	const response = await client.tts({
-		input: options.text,
-		voice: options.voice,
-		response_format: options.format as 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm' | undefined,
-	});
-
-	const outputPath = path.resolve(options.output);
+async function saveStreamingAudio(response: Response, outputFile: string): Promise<void> {
+	const outputPath = path.resolve(outputFile);
 	const body = response.body;
 	if (!body) {
 		throw new Error('Empty response body');
@@ -41,24 +35,22 @@ async function runTts(client: OpenAPIClient, options: TtsOptions): Promise<void>
 	console.log(`✓ Audio saved: ${outputPath} (${formatBytes(stat.size)})`);
 }
 
+async function runTts(client: OpenAPIClient, options: TtsOptions): Promise<void> {
+	const response = await client.tts({
+		input: options.text,
+		voice: options.voice,
+		response_format: options.format as 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm' | undefined,
+	});
+	await saveStreamingAudio(response, options.output);
+}
+
 async function runAudioSpeech(client: OpenAPIClient, options: TtsOptions): Promise<void> {
 	const response = await client.audioSpeech({
 		input: options.text,
 		voice: options.voice,
 		response_format: options.format as 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm' | undefined,
 	});
-
-	const outputPath = path.resolve(options.output);
-	const body = response.body;
-	if (!body) {
-		throw new Error('Empty response body');
-	}
-
-	const writeStream = fs.createWriteStream(outputPath);
-	await pipeline(Readable.fromWeb(body as NodeReadableStream), writeStream);
-
-	const stat = fs.statSync(outputPath);
-	console.log(`✓ Audio saved: ${outputPath} (${formatBytes(stat.size)})`);
+	await saveStreamingAudio(response, options.output);
 }
 
 async function runSpeech(client: OpenAPIClient, options: SpeechOptions): Promise<void> {
