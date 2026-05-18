@@ -55,11 +55,9 @@ describe('getOpenAPIClient', () => {
 		vi.stubEnv('LISTENHUB_API_KEY', 'lh_sk_env_priority');
 		const dir = path.join(tmpDir, 'listenhub');
 		fs.mkdirSync(dir, {recursive: true});
-		fs.writeFileSync(
-			path.join(dir, 'openapi.json'),
-			JSON.stringify({apiKey: 'lh_sk_file_lower'}),
-			{mode: 0o600},
-		);
+		fs.writeFileSync(path.join(dir, 'openapi.json'), JSON.stringify({apiKey: 'lh_sk_file_lower'}), {
+			mode: 0o600,
+		});
 		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
 		await getOpenAPIClient();
 		expect(mockOpenAPIClient).toHaveBeenCalledWith({apiKey: 'lh_sk_env_priority'});

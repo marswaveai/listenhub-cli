@@ -56,7 +56,12 @@ export function register(openapi: Command) {
 		.description('Create a flow speech episode from sources')
 		.option('--source-url <url>', 'Source URL (repeatable)', collect, [] as string[])
 		.option('--source-text <text>', 'Source text (repeatable)', collect, [] as string[])
-		.option('--speaker-id <id>', 'Speaker ID (repeatable, at least 1 required)', collect, [] as string[])
+		.option(
+			'--speaker-id <id>',
+			'Speaker ID (repeatable, at least 1 required)',
+			collect,
+			[] as string[],
+		)
 		.option('--mode <mode>', 'Generation mode: smart, direct', 'smart')
 		.option('--lang <lang>', 'Language code')
 		.option('--no-wait', 'Do not wait for completion')
@@ -144,8 +149,18 @@ export function register(openapi: Command) {
 	flowSpeech
 		.command('tts')
 		.description('Create flow speech from scripts')
-		.option('--script <content>', 'Script content (repeatable, at least 1 required)', collect, [] as string[])
-		.option('--speaker-id <id>', 'Speaker ID (repeatable, at least 1 required)', collect, [] as string[])
+		.option(
+			'--script <content>',
+			'Script content (repeatable, at least 1 required)',
+			collect,
+			[] as string[],
+		)
+		.option(
+			'--speaker-id <id>',
+			'Speaker ID (repeatable, at least 1 required)',
+			collect,
+			[] as string[],
+		)
 		.option('--title <title>', 'Episode title')
 		.option('--no-wait', 'Do not wait for completion')
 		.option('--timeout <seconds>', 'Polling timeout in seconds', '300')

@@ -68,9 +68,10 @@ export function register(openapi: Command) {
 					...options.sourceText.map((content) => ({type: 'text' as const, content})),
 				];
 
-				const speakers = options.speakerId.length > 0
-					? options.speakerId.map((speakerId) => ({speakerId}))
-					: undefined;
+				const speakers =
+					options.speakerId.length > 0
+						? options.speakerId.map((speakerId) => ({speakerId}))
+						: undefined;
 
 				const {episodeId} = await client.createStorybook({
 					sources,

@@ -56,9 +56,7 @@ afterEach(() => {
 
 describe('speakers list', () => {
 	it('calls listSpeakers without filter and prints JSON', async () => {
-		const items = [
-			{name: 'Alice', speakerId: 'alice-01', gender: 'female', language: 'en'},
-		];
+		const items = [{name: 'Alice', speakerId: 'alice-01', gender: 'female', language: 'en'}];
 		mockClient.listSpeakers.mockResolvedValue({items});
 		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 

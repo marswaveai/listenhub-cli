@@ -10,14 +10,20 @@ type SubscriptionOptions = {
 function printSubscriptionDetail(result: OpenAPISubscriptionInfo): void {
 	printDetail('Subscription', [
 		['Credits', result.totalAvailableCredits],
-		['Monthly', result.usageAvailableMonthlyCredits !== undefined
-			? `${String(result.usageAvailableMonthlyCredits)} / ${String(result.usageTotalMonthlyCredits)}`
-			: undefined],
+		[
+			'Monthly',
+			result.usageAvailableMonthlyCredits !== undefined
+				? `${String(result.usageAvailableMonthlyCredits)} / ${String(result.usageTotalMonthlyCredits)}`
+				: undefined,
+		],
 		['Permanent', result.usageAvailablePermanentCredits],
 		['Plan', result.subscriptionPlan?.name],
-		['Expires', result.subscriptionExpiresAt !== undefined
-			? new Date(result.subscriptionExpiresAt * 1000).toISOString()
-			: undefined],
+		[
+			'Expires',
+			result.subscriptionExpiresAt !== undefined
+				? new Date(result.subscriptionExpiresAt * 1000).toISOString()
+				: undefined,
+		],
 	]);
 }
 

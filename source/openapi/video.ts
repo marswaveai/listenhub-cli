@@ -76,10 +76,28 @@ export function register(openapi: Command) {
 		.requiredOption('--prompt <text>', 'Video description / prompt')
 		.option('--first-frame <url>', 'First frame image URL')
 		.option('--last-frame <url>', 'Last frame image URL (requires --first-frame)')
-		.option('--reference-image <url>', 'Reference image URL (repeatable, max 9)', collect, [] as string[])
-		.option('--reference-video <url>', 'Reference video URL (repeatable, max 3)', collect, [] as string[])
-		.option('--reference-audio <url>', 'Reference audio URL (repeatable, max 3)', collect, [] as string[])
-		.option('--input-video-duration <seconds>', 'Input video duration in seconds (2-15, required with --reference-video)')
+		.option(
+			'--reference-image <url>',
+			'Reference image URL (repeatable, max 9)',
+			collect,
+			[] as string[],
+		)
+		.option(
+			'--reference-video <url>',
+			'Reference video URL (repeatable, max 3)',
+			collect,
+			[] as string[],
+		)
+		.option(
+			'--reference-audio <url>',
+			'Reference audio URL (repeatable, max 3)',
+			collect,
+			[] as string[],
+		)
+		.option(
+			'--input-video-duration <seconds>',
+			'Input video duration in seconds (2-15, required with --reference-video)',
+		)
 		.option('--model <model>', 'Model name (e.g. doubao-seedance-2-pro)')
 		.option('--resolution <res>', 'Output resolution: 480p, 720p, 1080p')
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9')
@@ -163,11 +181,19 @@ export function register(openapi: Command) {
 				];
 
 				if (options.firstFrame) {
-					content.push({type: 'image_url', image_url: {url: options.firstFrame}, role: 'first_frame'});
+					content.push({
+						type: 'image_url',
+						image_url: {url: options.firstFrame},
+						role: 'first_frame',
+					});
 				}
 
 				if (options.lastFrame) {
-					content.push({type: 'image_url', image_url: {url: options.lastFrame}, role: 'last_frame'});
+					content.push({
+						type: 'image_url',
+						image_url: {url: options.lastFrame},
+						role: 'last_frame',
+					});
 				}
 
 				for (const url of options.referenceImage) {
@@ -255,7 +281,10 @@ export function register(openapi: Command) {
 		.description('List video generation tasks')
 		.option('--page <n>', 'Page number', '1')
 		.option('--page-size <n>', 'Items per page', '20')
-		.option('--status <status>', 'Filter by status: pending, generating, uploading, success, failed')
+		.option(
+			'--status <status>',
+			'Filter by status: pending, generating, uploading, success, failed',
+		)
 		.option('-j, --json', 'Output JSON', false)
 		.action(async (options: VideoListOptions) => {
 			try {

@@ -16,12 +16,12 @@ npm install -g @marswave/listenhub-cli
 
 ## 两种认证方式
 
-| | OAuth 登录 | OpenAPI Key |
-|---|---|---|
-| 设置 | `listenhub auth login`（打开浏览器） | 设置 `LISTENHUB_API_KEY` 环境变量 或 `listenhub openapi config set-key` |
-| 命令前缀 | `listenhub podcast`、`listenhub tts` 等 | `listenhub openapi podcast`、`listenhub openapi tts` 等 |
-| 适用场景 | 交互式使用、账号管理 | 脚本、CI/CD、程序化调用 |
-| 凭证存储 | `~/.config/listenhub/credentials.json` | `~/.config/listenhub/openapi.json` 或环境变量 |
+|          | OAuth 登录                              | OpenAPI Key                                                             |
+| -------- | --------------------------------------- | ----------------------------------------------------------------------- |
+| 设置     | `listenhub auth login`（打开浏览器）    | 设置 `LISTENHUB_API_KEY` 环境变量 或 `listenhub openapi config set-key` |
+| 命令前缀 | `listenhub podcast`、`listenhub tts` 等 | `listenhub openapi podcast`、`listenhub openapi tts` 等                 |
+| 适用场景 | 交互式使用、账号管理                    | 脚本、CI/CD、程序化调用                                                 |
+| 凭证存储 | `~/.config/listenhub/credentials.json`  | `~/.config/listenhub/openapi.json` 或环境变量                           |
 
 两种方式底层调用相同的 API，按需选择即可。
 
@@ -73,64 +73,64 @@ listenhub openapi subscription -j
 
 ### 认证
 
-| 命令 | 说明 |
-|---|---|
-| `listenhub auth login` | 浏览器 OAuth 登录 |
-| `listenhub auth logout` | 登出并撤销 token |
-| `listenhub auth status` | 查看登录状态 |
+| 命令                    | 说明              |
+| ----------------------- | ----------------- |
+| `listenhub auth login`  | 浏览器 OAuth 登录 |
+| `listenhub auth logout` | 登出并撤销 token  |
+| `listenhub auth status` | 查看登录状态      |
 
 ### 音乐
 
-| 命令 | 说明 |
-|---|---|
+| 命令                       | 说明                 |
+| -------------------------- | -------------------- |
 | `listenhub music generate` | 根据文字描述生成音乐 |
-| `listenhub music cover` | 用参考音频创建翻唱 |
-| `listenhub music list` | 列出音乐任务 |
-| `listenhub music get <id>` | 查看音乐任务详情 |
+| `listenhub music cover`    | 用参考音频创建翻唱   |
+| `listenhub music list`     | 列出音乐任务         |
+| `listenhub music get <id>` | 查看音乐任务详情     |
 
 ### 内容创作
 
-| 命令 | 说明 |
-|---|---|
-| `listenhub podcast create` | 创建播客 |
-| `listenhub podcast list` | 列出播客 |
-| `listenhub tts create` | 创建语音合成 |
-| `listenhub tts list` | 列出语音合成 |
+| 命令                         | 说明         |
+| ---------------------------- | ------------ |
+| `listenhub podcast create`   | 创建播客     |
+| `listenhub podcast list`     | 列出播客     |
+| `listenhub tts create`       | 创建语音合成 |
+| `listenhub tts list`         | 列出语音合成 |
 | `listenhub explainer create` | 创建讲解视频 |
-| `listenhub explainer list` | 列出讲解视频 |
-| `listenhub slides create` | 创建幻灯片 |
-| `listenhub slides list` | 列出幻灯片 |
+| `listenhub explainer list`   | 列出讲解视频 |
+| `listenhub slides create`    | 创建幻灯片   |
+| `listenhub slides list`      | 列出幻灯片   |
 
 ### 图片
 
-| 命令 | 说明 |
-|---|---|
-| `listenhub image create` | AI 生图 |
-| `listenhub image list` | 列出图片 |
+| 命令                       | 说明         |
+| -------------------------- | ------------ |
+| `listenhub image create`   | AI 生图      |
+| `listenhub image list`     | 列出图片     |
 | `listenhub image get <id>` | 查看图片详情 |
 
 ### 视频生成
 
-| 命令 | 说明 |
-|---|---|
-| `listenhub video create` | 创建视频生成任务 |
-| `listenhub video list` | 列出视频任务 |
+| 命令                       | 说明             |
+| -------------------------- | ---------------- |
+| `listenhub video create`   | 创建视频生成任务 |
+| `listenhub video list`     | 列出视频任务     |
 | `listenhub video get <id>` | 查看视频任务详情 |
-| `listenhub video estimate` | 预估积分消耗 |
+| `listenhub video estimate` | 预估积分消耗     |
 
 ### 歌词
 
-| 命令 | 说明 |
-|---|---|
+| 命令                            | 说明             |
+| ------------------------------- | ---------------- |
 | `listenhub lyrics extract <id>` | 从作品中提取歌词 |
 
 ### 其他
 
-| 命令 | 说明 |
-|---|---|
-| `listenhub speakers list` | 列出可用声音 |
-| `listenhub creation get <id>` | 查看作品详情 |
-| `listenhub creation delete <id...>` | 删除作品 |
+| 命令                                | 说明         |
+| ----------------------------------- | ------------ |
+| `listenhub speakers list`           | 列出可用声音 |
+| `listenhub creation get <id>`       | 查看作品详情 |
+| `listenhub creation delete <id...>` | 删除作品     |
 
 ---
 
@@ -140,79 +140,79 @@ listenhub openapi subscription -j
 
 ### 配置
 
-| 命令 | 说明 |
-|---|---|
+| 命令                     | 说明               |
+| ------------------------ | ------------------ |
 | `openapi config set-key` | 交互式设置 API Key |
-| `openapi config show` | 查看当前 Key 状态 |
-| `openapi config clear` | 清除已存储的 Key |
+| `openapi config show`    | 查看当前 Key 状态  |
+| `openapi config clear`   | 清除已存储的 Key   |
 
 ### 声音
 
-| 命令 | 说明 |
-|---|---|
+| 命令                    | 说明                                   |
+| ----------------------- | -------------------------------------- |
 | `openapi speakers list` | 列出可用声音（支持 `--language` 过滤） |
 
 ### 语音合成
 
-| 命令 | 说明 |
-|---|---|
-| `openapi tts` | 文字转语音，直接保存音频文件 |
-| `openapi audio-speech` | TTS（OpenAI 兼容接口） |
-| `openapi speech` | 创建语音，返回音频 URL |
+| 命令                   | 说明                         |
+| ---------------------- | ---------------------------- |
+| `openapi tts`          | 文字转语音，直接保存音频文件 |
+| `openapi audio-speech` | TTS（OpenAI 兼容接口）       |
+| `openapi speech`       | 创建语音，返回音频 URL       |
 
 ### Flow Speech
 
-| 命令 | 说明 |
-|---|---|
-| `openapi flow-speech create` | 从 URL/文本创建 flow speech |
-| `openapi flow-speech get <id>` | 查看详情 |
-| `openapi flow-speech tts` | 从脚本创建 flow speech |
-| `openapi flow-speech text-stream <id>` | 流式输出生成文本（SSE） |
+| 命令                                   | 说明                        |
+| -------------------------------------- | --------------------------- |
+| `openapi flow-speech create`           | 从 URL/文本创建 flow speech |
+| `openapi flow-speech get <id>`         | 查看详情                    |
+| `openapi flow-speech tts`              | 从脚本创建 flow speech      |
+| `openapi flow-speech text-stream <id>` | 流式输出生成文本（SSE）     |
 
 ### 播客
 
-| 命令 | 说明 |
-|---|---|
-| `openapi podcast create` | 创建播客 |
-| `openapi podcast get <id>` | 查看播客详情 |
-| `openapi podcast text-content` | 仅生成文本（不生成音频） |
-| `openapi podcast generate-audio <id>` | 为已有文本生成音频 |
-| `openapi podcast text-stream <id>` | 流式输出生成文本（SSE） |
+| 命令                                  | 说明                     |
+| ------------------------------------- | ------------------------ |
+| `openapi podcast create`              | 创建播客                 |
+| `openapi podcast get <id>`            | 查看播客详情             |
+| `openapi podcast text-content`        | 仅生成文本（不生成音频） |
+| `openapi podcast generate-audio <id>` | 为已有文本生成音频       |
+| `openapi podcast text-stream <id>`    | 流式输出生成文本（SSE）  |
 
 ### 故事书
 
-| 命令 | 说明 |
-|---|---|
-| `openapi storybook create` | 创建故事书/讲解 |
-| `openapi storybook get <id>` | 查看详情 |
-| `openapi storybook generate-video <id>` | 生成视频 |
+| 命令                                    | 说明            |
+| --------------------------------------- | --------------- |
+| `openapi storybook create`              | 创建故事书/讲解 |
+| `openapi storybook get <id>`            | 查看详情        |
+| `openapi storybook generate-video <id>` | 生成视频        |
 
 ### 图片
 
-| 命令 | 说明 |
-|---|---|
+| 命令                   | 说明                                 |
+| ---------------------- | ------------------------------------ |
 | `openapi image create` | AI 生图（支持本地文件 + URL 参考图） |
 
 ### 视频
 
-| 命令 | 说明 |
-|---|---|
-| `openapi video create` | 创建视频生成任务 |
+| 命令                     | 说明             |
+| ------------------------ | ---------------- |
+| `openapi video create`   | 创建视频生成任务 |
 | `openapi video get <id>` | 查看视频任务详情 |
-| `openapi video list` | 列出视频任务 |
-| `openapi video estimate` | 预估积分消耗 |
+| `openapi video list`     | 列出视频任务     |
+| `openapi video estimate` | 预估积分消耗     |
 
 ### 内容提取
 
-| 命令 | 说明 |
-|---|---|
-| `openapi content extract` | 从 URL 提取内容 |
-| `openapi content get <id>` | 查看提取结果 |
+| 命令                       | 说明            |
+| -------------------------- | --------------- |
+| `openapi content extract`  | 从 URL 提取内容 |
+| `openapi content get <id>` | 查看提取结果    |
 
 ### 订阅
 
-| 命令 | 说明 |
-|---|---|
+| 命令                   | 说明               |
+| ---------------------- | ------------------ |
 | `openapi subscription` | 查看积分和套餐信息 |
 
 ---

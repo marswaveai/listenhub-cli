@@ -54,7 +54,9 @@ function resolveReference(ref: string) {
 
 async function createImage(client: OpenAPIClient, options: ImageCreateOptions): Promise<void> {
 	const referenceImages =
-		options.reference.length > 0 ? options.reference.map(ref => resolveReference(ref)) : undefined;
+		options.reference.length > 0
+			? options.reference.map((ref) => resolveReference(ref))
+			: undefined;
 
 	const result = await client.createImage({
 		provider: options.provider,
@@ -62,7 +64,7 @@ async function createImage(client: OpenAPIClient, options: ImageCreateOptions): 
 		prompt: options.prompt,
 		referenceImages,
 		imageConfig:
-			options.size ?? options.ratio
+			(options.size ?? options.ratio)
 				? {
 						imageSize: options.size,
 						aspectRatio: options.ratio,

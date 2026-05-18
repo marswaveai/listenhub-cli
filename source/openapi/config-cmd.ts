@@ -2,7 +2,12 @@ import type {Command} from 'commander';
 import process from 'node:process';
 import readline from 'node:readline/promises';
 import {handleError} from '../_shared/output.js';
-import {deleteOpenAPIConfig, loadOpenAPIConfig, saveOpenAPIConfig, validateApiKey} from './config.js';
+import {
+	deleteOpenAPIConfig,
+	loadOpenAPIConfig,
+	saveOpenAPIConfig,
+	validateApiKey,
+} from './config.js';
 
 async function runSetKey(): Promise<void> {
 	const rl = readline.createInterface({input: process.stdin, output: process.stderr});
@@ -53,7 +58,9 @@ async function runShow(json: boolean): Promise<void> {
 	if (json) {
 		console.log(JSON.stringify({source: null}, null, 2));
 	} else {
-		console.log('No API Key configured. Run `listenhub openapi config set-key` or set LISTENHUB_API_KEY.');
+		console.log(
+			'No API Key configured. Run `listenhub openapi config set-key` or set LISTENHUB_API_KEY.',
+		);
 	}
 
 	process.exit(1); // eslint-disable-line unicorn/no-process-exit

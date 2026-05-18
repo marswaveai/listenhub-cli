@@ -67,7 +67,12 @@ export function register(openapi: Command) {
 		.option('--query <text>', 'Query or topic for the podcast')
 		.option('--source-url <url>', 'Source URL (repeatable)', collect, [] as string[])
 		.option('--source-text <text>', 'Source text (repeatable)', collect, [] as string[])
-		.option('--speaker-id <id>', 'Speaker ID (repeatable, at least 1 required)', collect, [] as string[])
+		.option(
+			'--speaker-id <id>',
+			'Speaker ID (repeatable, at least 1 required)',
+			collect,
+			[] as string[],
+		)
 		.option('--mode <mode>', 'Generation mode')
 		.option('--lang <lang>', 'Language code')
 		.option('--no-wait', 'Do not wait for completion')
@@ -154,7 +159,12 @@ export function register(openapi: Command) {
 		.option('--query <text>', 'Query or topic for the podcast')
 		.option('--source-url <url>', 'Source URL (repeatable)', collect, [] as string[])
 		.option('--source-text <text>', 'Source text (repeatable)', collect, [] as string[])
-		.option('--speaker-id <id>', 'Speaker ID (repeatable, at least 1 required)', collect, [] as string[])
+		.option(
+			'--speaker-id <id>',
+			'Speaker ID (repeatable, at least 1 required)',
+			collect,
+			[] as string[],
+		)
 		.option('--mode <mode>', 'Generation mode')
 		.option('--no-wait', 'Do not wait for completion')
 		.option('--timeout <seconds>', 'Polling timeout in seconds', '300')
@@ -167,7 +177,9 @@ export function register(openapi: Command) {
 				}
 
 				if (!options.query && options.sourceUrl.length === 0 && options.sourceText.length === 0) {
-					console.error('✗ Error: At least one of --query, --source-url, or --source-text is required');
+					console.error(
+						'✗ Error: At least one of --query, --source-url, or --source-text is required',
+					);
 					process.exit(1); // eslint-disable-line unicorn/no-process-exit
 				}
 

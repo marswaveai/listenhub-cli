@@ -29,7 +29,9 @@ describe('pollOpenAPI', () => {
 	});
 
 	it('throws on failure', async () => {
-		const getStatus = vi.fn().mockResolvedValue({processStatus: 'failed', message: 'bad', failCode: 42});
+		const getStatus = vi
+			.fn()
+			.mockResolvedValue({processStatus: 'failed', message: 'bad', failCode: 42});
 		const promise = pollOpenAPI({
 			getStatus,
 			isDone: (r: {processStatus: string}) => r.processStatus === 'success',

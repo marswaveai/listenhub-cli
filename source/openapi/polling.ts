@@ -30,9 +30,7 @@ export async function pollOpenAPI<T>(config: PollConfig<T>): Promise<T> {
 	const maxAttempts = Math.ceil(timeoutS / (pollIntervalMs / 1000));
 	const label = options.label ?? 'Processing';
 
-	const spinner = options.json
-		? undefined
-		: ora({text: `${label}... (1/${maxAttempts})`}).start();
+	const spinner = options.json ? undefined : ora({text: `${label}... (1/${maxAttempts})`}).start();
 
 	for (let i = 0; i < maxAttempts; i++) {
 		if (i > 0) {
