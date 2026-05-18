@@ -7,6 +7,8 @@ import {register as registerPodcast} from './podcast.js';
 import {register as registerStorybook} from './storybook.js';
 import {register as registerImage} from './image.js';
 import {register as registerVideo} from './video.js';
+import {register as registerContent} from './content.js';
+import {register as registerSubscription} from './subscription.js';
 
 export function register(program: Command) {
 	const openapi = program.command('openapi').description('OpenAPI Key–based commands');
@@ -18,4 +20,6 @@ export function register(program: Command) {
 	registerStorybook(openapi);
 	registerImage(openapi);
 	registerVideo(openapi);
+	registerContent(openapi);
+	registerSubscription(openapi);
 }
