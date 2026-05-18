@@ -18,18 +18,25 @@
    type FileAcceptType = 'audio' | 'image' | 'video';
    ```
 
-2. 新增视频相关常量：
+2. 新增视频相关常量（SeeDance 仅支持 mp4/mov，单文件 < 50MB）：
    ```ts
-   const videoExtensions = new Set(['.mp4', '.mov', '.webm']);
+   const videoExtensions = new Set(['.mp4', '.mov']);
    // maxSizeBytes
-   video: 100 * 1024 * 1024,
+   video: 50 * 1024 * 1024,
    // categoryForType
    video: 'episode',
    // mimeTypes
    ['.mp4', 'video/mp4'],
    ['.mov', 'video/quicktime'],
-   ['.webm', 'video/webm'],
    ```
+
+3. video 命令中音频素材限制为 `mp3/wav`（SeeDance 支持范围），单文件 < 15MB。
+   在 `resolveFileOrUrl` 调用时，video 命令对 audio 类型传 `{ accept: 'audio', category: 'episode' }` ——
+   但需新增一个 `videoAudioExtensions` 集合做额外校验（或在 video.ts 校验层先过滤后缀），
+   避免用户传 `.flac`/`.ogg` 等 CLI 层面放行但 provider 拒绝的格式。
+   
+   实现方式：在 `video.ts` 的 `validateCreateOptions` 中检查 `--reference-audio` 文件后缀，
+   不在 `['.mp3', '.wav']` 内的直接报错：`Reference audio must be .mp3 or .wav`。
 
 3. `allowedExtensions` 函数扩展 video 分支。
 
@@ -119,6 +126,10 @@ export type VideoCreateOptions = {
 **`createVideo` 逻辑：**
 
 1. **校验阶段** — 调用 `validateCreateOptions(options)` 内部函数，按 spec 校验表逐条检查，不满足直接 `throw new Error(msg)`。
+   额外规则：
+   - 没有 `--reference-video` 时传了 `--input-video-duration` → 报错 `--input-video-duration requires --reference-video`
+   - `--reference-audio` 文件后缀不在 `.mp3`/`.wav` 内 → 报错 `Reference audio must be .mp3 or .wav`
+   - `--reference-video` 文件后缀不在 `.mp4`/`.mov` 内 → 报错 `Reference video must be .mp4 or .mov`
 
 2. **构建 content 数组：**
    ```ts
@@ -157,6 +168,7 @@ export type VideoCreateOptions = {
 **`listVideos`：** 调用 `client.listVideoGenerationTasks(params)` → `printTable` 显示 ID / Model / Status / Duration / Created。
 
 **`estimateCredits`：** 调用 `client.estimateVideoGenerationCredits(params)` → 输出 tokens 和 credits。
+校验：`--input-video-duration` 和 `--has-video-input` 必须成对出现，缺一报错。
 
 ---
 
@@ -251,9 +263,7 @@ registerVideo(program);  // 放在 registerCreation 之前
    | `listenhub video estimate` | Estimate credit cost          |
    ```
 
-2. Examples 新增：
-   ```bash
-   ### Video generation
+2. Examples 新增 Video generation 小节：
 
    ```bash
    # Text-to-video
@@ -270,14 +280,26 @@ registerVideo(program);  // 放在 registerCreation 之前
    listenhub video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10
    ```
 
+**文件：`README.zh-CN.md`**
+
+同步更新中文 README，添加对应的 Video Generation 命令表和示例（与英文版对齐）。
+
 ---
 
-### Step 7: Lint 检查 + 修复
+### Step 7: 构建验证 + Lint + Smoke check
 
 ```bash
-pnpm lint
-# 若有问题则修复后重新运行
+pnpm lint          # xo 代码规范
+pnpm run build     # TypeScript 编译，确认无类型错误
+
+# Smoke check — 确认命令注册正确
+node dist/cli.js video --help
+node dist/cli.js video create --help
+node dist/cli.js video list --help
+node dist/cli.js video estimate --help
 ```
+
+若有问题则修复后重新运行。
 
 ---
 
@@ -288,15 +310,16 @@ pnpm lint
 | `package.json` | 修改 | ~1 行 |
 | `source/_shared/upload.ts` | 修改 | +15 行 |
 | `source/_shared/polling.ts` | 修改 | +30 行 |
-| `source/video/video.ts` | 新增 | ~180 行 |
+| `source/video/video.ts` | 新增 | ~200 行 |
 | `source/video/_cli.ts` | 新增 | ~90 行 |
 | `source/cli.ts` | 修改 | +2 行 |
 | `README.md` | 修改 | +25 行 |
+| `README.zh-CN.md` | 修改 | +25 行 |
 
 总新增约 340 行代码。
 
 ## 风险点
 
 1. **SDK 0.0.6 兼容性** — CLI 当前锁定 `^0.0.4`，升级后确认其他命令不受影响（SDK 是向后兼容的增量新增）。
-2. **视频文件上传体积** — 100MB 本地文件上传到 GCS 可能耗时较长，`resolveFileOrUrl` 当前无进度条，大文件体验需留意（不在本次范围内解决）。
+2. **视频文件上传体积** — 50MB 本地文件上传到 GCS 可能耗时较长，`resolveFileOrUrl` 当前无进度条，大文件体验需留意（不在本次范围内解决）。
 3. **Commander `--no-generate-audio` 语义** — Commander 会自动创建 `generateAudio` 布尔值，默认 `true`，传 `--no-generate-audio` 后变 `false`。需确认 Commander 版本行为。

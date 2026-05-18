@@ -119,9 +119,14 @@ resolveFileOrUrl(client, input, { accept: 'video', category: 'episode' })
 ```
 
 **新增 `video` 文件类型：**
-- 允许后缀：`.mp4`、`.mov`、`.webm`
-- 最大体积：100 MB
-- MIME：`video/mp4`、`video/quicktime`、`video/webm`
+- 允许后缀：`.mp4`、`.mov`
+- 最大体积：50 MB
+- MIME：`video/mp4`、`video/quicktime`
+
+**video 命令中音频素材限制：**
+- 允许后缀：`.mp3`、`.wav`（SeeDance 支持范围，不含 `.flac`/`.ogg` 等）
+- 最大体积：15 MB
+- 在 `video.ts` 校验层额外检查后缀，不合格直接报错
 
 **video 命令的 upload category：** 所有素材（image/video/audio）统一使用 `category=episode`（private upload）。后端 `resolveMediaUrl` 对 private bucket URL 通过 `UserFileDao` 校验所有权后签名，这是最稳妥的路径。现有 image 命令继续用 `category=banana` 不受影响。
 
@@ -144,6 +149,7 @@ resolveFileOrUrl(client, input, { accept: 'video', category: 'episode' })
 | `--seed` 不在 -1 到 4294967295 | `Seed must be between -1 and 4294967295` |
 | `--resolution 1080p` + model 非 pro | `1080p resolution requires --model doubao-seedance-2-pro` |
 | `--reference-video` 存在但缺 `--input-video-duration` | `--input-video-duration is required when using --reference-video` |
+| `--input-video-duration` 存在但无 `--reference-video` | `--input-video-duration requires --reference-video` |
 | `--input-video-duration` 不在 2–15 | `Input video duration must be between 2 and 15 seconds` |
 | `--last-frame` 无 `--first-frame` | `--last-frame requires --first-frame` |
 | 帧控制 + 参考混用 | `Cannot mix frame mode (--first-frame/--last-frame) with reference mode (--reference-image/--reference-video/--reference-audio)` |
