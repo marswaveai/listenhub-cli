@@ -14,24 +14,44 @@
 
 | File | Responsibility |
 |------|---------------|
-| `source/openapi/_cli.ts` | Register `openapi` subcommand group with Commander |
+| `source/openapi/_cli.ts` | Thin dispatcher: creates `openapi` Command, calls each module's `register(openapi)` |
 | `source/openapi/client.ts` | `getOpenAPIClient()`: load key → instantiate SDK OpenAPIClient |
 | `source/openapi/config.ts` | `loadOpenAPIConfig` / `saveOpenAPIConfig` / `deleteOpenAPIConfig` |
-| `source/openapi/config-cmd.ts` | `config set-key` / `show` / `clear` implementations |
+| `source/openapi/config-cmd.ts` | `config set-key` / `show` / `clear` — exports `register(openapi)` |
 | `source/openapi/polling.ts` | Generic `pollOpenAPI()` helper for all async OpenAPI tasks |
-| `source/openapi/speakers.ts` | `speakers list` |
-| `source/openapi/tts.ts` | `tts` (binary stream) + `audio-speech` (alias) + `speech` (JSON) |
-| `source/openapi/flow-speech.ts` | `flow-speech create` / `get` / `tts` / `text-stream` |
-| `source/openapi/podcast.ts` | `podcast create` / `get` / `text-content` / `generate-audio` / `text-stream` |
-| `source/openapi/storybook.ts` | `storybook create` / `get` / `generate-video` |
-| `source/openapi/image.ts` | `image create` (with base64 reference support) |
-| `source/openapi/video.ts` | `video create` / `get` / `list` / `estimate` |
-| `source/openapi/content.ts` | `content extract` / `get` |
-| `source/openapi/subscription.ts` | `subscription` |
+| `source/openapi/speakers.ts` | `speakers list` — exports `register(openapi)` |
+| `source/openapi/tts.ts` | `tts` + `audio-speech` + `speech` — exports `register(openapi)` |
+| `source/openapi/flow-speech.ts` | `flow-speech create/get/tts/text-stream` — exports `register(openapi)` |
+| `source/openapi/podcast.ts` | `podcast create/get/text-content/generate-audio/text-stream` — exports `register(openapi)` |
+| `source/openapi/storybook.ts` | `storybook create/get/generate-video` — exports `register(openapi)` |
+| `source/openapi/image.ts` | `image create` (with base64 reference) — exports `register(openapi)` |
+| `source/openapi/video.ts` | `video create/get/list/estimate` — exports `register(openapi)` |
+| `source/openapi/content.ts` | `content extract/get` — exports `register(openapi)` |
+| `source/openapi/subscription.ts` | `subscription` — exports `register(openapi)` |
 | `source/cli.ts` | Modified: add `registerOpenApi(program)` |
 | `tests/openapi/config.test.ts` | Unit tests for config read/write/validate |
 | `tests/openapi/client.test.ts` | Unit tests for client factory |
 | `tests/openapi/polling.test.ts` | Unit tests for generic poller |
+| `tests/openapi/commands.test.ts` | Integration tests: mock OpenAPIClient, verify command arg mapping & output |
+
+## Architecture Note: Self-Registering Modules
+
+Each command module exports its own `register(openapi: Command)` function that adds subcommands directly.
+`_cli.ts` is written **once** in Task 6 and never touched again — it just calls all `register*` functions.
+This means Tasks 7–14 each touch **only their own file** (+ their test), eliminating merge conflicts for parallel work.
+
+## Validation Pattern: Repeatable Required Options
+
+Commander's `requiredOption(..., collect, [])` does NOT enforce non-empty arrays (the default `[]` counts as "present").
+All commands that need at least one value for repeatable options (e.g. `--speaker-id`) MUST validate non-empty in the action handler before calling the implementation function:
+
+```ts
+if (options.speakerId.length === 0) {
+  throw new Error('At least one --speaker-id is required');
+}
+```
+
+Use `.option(...)` (not `.requiredOption(...)`) for repeatable fields, and validate explicitly.
 
 ---
 
@@ -523,21 +543,45 @@ git commit -m "feat(openapi): add generic polling helper for async tasks"
 
 ---
 
-### Task 5: Config Commands (set-key / show / clear)
+### Task 5: (Merged into Task 6)
+
+Config command implementation is now part of Task 6 (CLI Registration) since `config-cmd.ts` exports its own `register()`.
+
+---
+
+### Task 6: CLI Registration (Entry Point)
 
 **Files:**
-- Create: `source/openapi/config-cmd.ts`
+- Create: `source/openapi/_cli.ts`
+- Modify: `source/cli.ts`
 
-- [ ] **Step 1: Implement config commands**
+- [ ] **Step 1: Create the openapi CLI registration (thin dispatcher)**
+
+Create `source/openapi/_cli.ts`:
+
+```ts
+import type {Command} from 'commander';
+import {register as registerConfig} from './config-cmd.js';
+
+export function register(program: Command) {
+	const openapi = program.command('openapi').description('OpenAPI Key–based commands');
+	registerConfig(openapi);
+	// Additional register*() calls will be added by subsequent tasks
+}
+```
+
+- [ ] **Step 2: Create config-cmd with register export**
 
 Create `source/openapi/config-cmd.ts`:
 
 ```ts
+import type {Command} from 'commander';
 import process from 'node:process';
 import readline from 'node:readline/promises';
+import {handleError} from '../_shared/output.js';
 import {deleteOpenAPIConfig, loadOpenAPIConfig, saveOpenAPIConfig, validateApiKey} from './config.js';
 
-export async function runSetKey(): Promise<void> {
+async function runSetKey(): Promise<void> {
 	const rl = readline.createInterface({input: process.stdin, output: process.stderr});
 	try {
 		const key = await rl.question('Enter your API Key (lh_sk_...): ');
@@ -556,7 +600,7 @@ export async function runSetKey(): Promise<void> {
 	}
 }
 
-export async function runShow(json: boolean): Promise<void> {
+async function runShow(json: boolean): Promise<void> {
 	const envKey = process.env['LISTENHUB_API_KEY'];
 	if (envKey) {
 		const keyId = envKey.split('_').slice(0, 3).join('_');
@@ -592,47 +636,12 @@ export async function runShow(json: boolean): Promise<void> {
 	process.exit(1); // eslint-disable-line unicorn/no-process-exit
 }
 
-export async function runClear(): Promise<void> {
+async function runClear(): Promise<void> {
 	await deleteOpenAPIConfig();
 	console.log('✓ API Key cleared');
 }
-```
 
-- [ ] **Step 2: Verify lint passes**
-
-```bash
-pnpm run lint
-```
-Expected: PASS
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add source/openapi/config-cmd.ts
-git commit -m "feat(openapi): add config set-key/show/clear commands"
-```
-
----
-
-### Task 6: CLI Registration (Entry Point)
-
-**Files:**
-- Create: `source/openapi/_cli.ts`
-- Modify: `source/cli.ts`
-
-- [ ] **Step 1: Create the openapi CLI registration**
-
-Create `source/openapi/_cli.ts`:
-
-```ts
-import type {Command} from 'commander';
-import {handleError} from '../_shared/output.js';
-import {runClear, runSetKey, runShow} from './config-cmd.js';
-
-export function register(program: Command) {
-	const openapi = program.command('openapi').description('OpenAPI Key–based commands');
-
-	// --- Config ---
+export function register(openapi: Command) {
 	const config = openapi.command('config').description('Manage API Key configuration');
 
 	config
@@ -671,7 +680,7 @@ export function register(program: Command) {
 }
 ```
 
-- [ ] **Step 2: Register in main cli.ts**
+- [ ] **Step 3: Register in main cli.ts**
 
 Add to `source/cli.ts` after the last existing `register` import:
 
@@ -685,18 +694,18 @@ Add after the last `register*(program)` call:
 registerOpenApi(program);
 ```
 
-- [ ] **Step 3: Build and verify config commands work**
+- [ ] **Step 4: Build and verify config commands work**
 
 ```bash
-pnpm run build
+pnpm run lint && pnpm run build
 node dist/cli.mjs openapi config show
 ```
 Expected: "No API Key configured" message, exit 1
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add source/openapi/_cli.ts source/cli.ts
+git add source/openapi/_cli.ts source/openapi/config-cmd.ts source/cli.ts
 git commit -m "feat(openapi): register openapi subcommand group with config commands"
 ```
 
@@ -705,18 +714,20 @@ git commit -m "feat(openapi): register openapi subcommand group with config comm
 ### Task 7: Speakers Command
 
 **Files:**
-- Modify: `source/openapi/_cli.ts`
 - Create: `source/openapi/speakers.ts`
+- Modify: `source/openapi/_cli.ts` (one-line import + call)
 
-- [ ] **Step 1: Implement speakers module**
+- [ ] **Step 1: Implement speakers module with self-registration**
 
 Create `source/openapi/speakers.ts`:
 
 ```ts
+import type {Command} from 'commander';
 import type {OpenAPIClient} from '@marswave/listenhub-sdk';
-import {printJson, printTable} from '../_shared/output.js';
+import {handleError, printJson, printTable} from '../_shared/output.js';
+import {getOpenAPIClient} from './client.js';
 
-export async function listSpeakers(
+async function listSpeakers(
 	client: OpenAPIClient,
 	options: {language?: string; json: boolean},
 ): Promise<void> {
@@ -733,21 +744,8 @@ export async function listSpeakers(
 	const rows = items.map((s) => [s.name, s.speakerId, s.gender, s.language]);
 	printTable(headers, rows);
 }
-```
 
-- [ ] **Step 2: Register speakers command in `_cli.ts`**
-
-Add import at top of `source/openapi/_cli.ts`:
-
-```ts
-import {getOpenAPIClient} from './client.js';
-import {listSpeakers} from './speakers.js';
-```
-
-Add after config commands (inside the `register` function):
-
-```ts
-	// --- Speakers ---
+export function register(openapi: Command) {
 	const speakers = openapi.command('speakers').description('Speaker management');
 
 	speakers
@@ -763,12 +761,23 @@ Add after config commands (inside the `register` function):
 				handleError(error, options.json);
 			}
 		});
+}
 ```
 
-- [ ] **Step 3: Build and verify**
+- [ ] **Step 2: Add to `_cli.ts` dispatcher**
+
+Add import and call in `source/openapi/_cli.ts`:
+
+```ts
+import {register as registerSpeakers} from './speakers.js';
+// inside register():
+registerSpeakers(openapi);
+```
+
+- [ ] **Step 3: Build and lint**
 
 ```bash
-pnpm run build && pnpm run lint
+pnpm run lint && pnpm run build
 ```
 Expected: PASS
 
@@ -785,9 +794,9 @@ git commit -m "feat(openapi): add speakers list command"
 
 **Files:**
 - Create: `source/openapi/tts.ts`
-- Modify: `source/openapi/_cli.ts`
+- Modify: `source/openapi/_cli.ts` (one-line import + call)
 
-- [ ] **Step 1: Implement TTS module**
+- [ ] **Step 1: Implement TTS module with self-registration**
 
 Create `source/openapi/tts.ts`:
 
@@ -796,23 +805,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {Readable} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
+import type {Command} from 'commander';
 import type {OpenAPIClient} from '@marswave/listenhub-sdk';
-import {printJson} from '../_shared/output.js';
+import {handleError, printJson} from '../_shared/output.js';
+import {getOpenAPIClient} from './client.js';
 
-export type TtsOptions = {
+type TtsOptions = {
 	text: string;
 	voice: string;
 	output: string;
 	format: string;
 };
 
-export type SpeechOptions = {
+type SpeechOptions = {
 	script: string;
 	speakerId: string;
 	json: boolean;
 };
 
-export async function runTts(client: OpenAPIClient, options: TtsOptions): Promise<void> {
+async function runTts(client: OpenAPIClient, options: TtsOptions): Promise<void> {
 	const response = await client.tts({
 		input: options.text,
 		voice: options.voice,
@@ -832,7 +843,7 @@ export async function runTts(client: OpenAPIClient, options: TtsOptions): Promis
 	console.log(`✓ Audio saved: ${outputPath} (${formatBytes(stat.size)})`);
 }
 
-export async function runAudioSpeech(client: OpenAPIClient, options: TtsOptions): Promise<void> {
+async function runAudioSpeech(client: OpenAPIClient, options: TtsOptions): Promise<void> {
 	const response = await client.audioSpeech({
 		input: options.text,
 		voice: options.voice,
@@ -852,7 +863,7 @@ export async function runAudioSpeech(client: OpenAPIClient, options: TtsOptions)
 	console.log(`✓ Audio saved: ${outputPath} (${formatBytes(stat.size)})`);
 }
 
-export async function runSpeech(client: OpenAPIClient, options: SpeechOptions): Promise<void> {
+async function runSpeech(client: OpenAPIClient, options: SpeechOptions): Promise<void> {
 	const result = await client.speech({
 		scripts: [{content: options.script, speakerId: options.speakerId}],
 	});
@@ -876,20 +887,8 @@ function formatBytes(bytes: number): string {
 	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
 	return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
-```
 
-- [ ] **Step 2: Register TTS commands in `_cli.ts`**
-
-Add import:
-
-```ts
-import {runAudioSpeech, runSpeech, runTts} from './tts.js';
-```
-
-Add command registrations:
-
-```ts
-	// --- TTS (binary stream) ---
+export function register(openapi: Command) {
 	openapi
 		.command('tts')
 		.description('Text-to-speech (binary audio output)')
@@ -906,7 +905,6 @@ Add command registrations:
 			}
 		});
 
-	// --- Audio Speech (OpenAI-compatible route) ---
 	openapi
 		.command('audio-speech')
 		.description('Text-to-speech (OpenAI /v1/audio/speech compatible)')
@@ -923,7 +921,6 @@ Add command registrations:
 			}
 		});
 
-	// --- Speech (JSON response) ---
 	openapi
 		.command('speech')
 		.description('Create speech (returns audio URL)')
@@ -938,6 +935,15 @@ Add command registrations:
 				handleError(error, options.json);
 			}
 		});
+}
+```
+
+- [ ] **Step 2: Add to `_cli.ts` dispatcher**
+
+```ts
+import {register as registerTts} from './tts.js';
+// inside register():
+registerTts(openapi);
 ```
 
 - [ ] **Step 3: Build and lint**
@@ -960,20 +966,26 @@ git commit -m "feat(openapi): add tts, audio-speech, and speech commands"
 
 **Files:**
 - Create: `source/openapi/flow-speech.ts`
-- Modify: `source/openapi/_cli.ts`
+- Modify: `source/openapi/_cli.ts` (one-line import + call)
 
-- [ ] **Step 1: Implement flow-speech module**
+- [ ] **Step 1: Implement flow-speech module with self-registration**
 
 Create `source/openapi/flow-speech.ts`:
 
 ```ts
+import type {Command} from 'commander';
 import type {OpenAPIClient, OpenAPIFlowSpeechDetail} from '@marswave/listenhub-sdk';
-import {printDetail, printJson} from '../_shared/output.js';
+import {handleError, printDetail, printJson} from '../_shared/output.js';
+import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
-export type FlowSpeechCreateOptions = {
-	sourceUrl?: string[];
-	sourceText?: string[];
+function collect(value: string, previous: string[]): string[] {
+	return [...previous, value];
+}
+
+type FlowSpeechCreateOptions = {
+	sourceUrl: string[];
+	sourceText: string[];
 	speakerId: string[];
 	mode: string;
 	lang?: string;
@@ -982,7 +994,7 @@ export type FlowSpeechCreateOptions = {
 	json: boolean;
 };
 
-export type FlowSpeechTtsOptions = {
+type FlowSpeechTtsOptions = {
 	script: string[];
 	speakerId: string[];
 	title?: string;
@@ -991,13 +1003,21 @@ export type FlowSpeechTtsOptions = {
 	json: boolean;
 };
 
-export async function createFlowSpeech(
+async function createFlowSpeech(
 	client: OpenAPIClient,
 	options: FlowSpeechCreateOptions,
 ): Promise<void> {
+	if (options.speakerId.length === 0) {
+		throw new Error('At least one --speaker-id is required');
+	}
+
+	if (options.sourceUrl.length === 0 && options.sourceText.length === 0) {
+		throw new Error('At least one --source-url or --source-text is required');
+	}
+
 	const sources = [
-		...(options.sourceUrl ?? []).map((uri) => ({type: 'url' as const, uri})),
-		...(options.sourceText ?? []).map((content) => ({type: 'text' as const, content})),
+		...options.sourceUrl.map((uri) => ({type: 'url' as const, uri})),
+		...options.sourceText.map((content) => ({type: 'text' as const, content})),
 	];
 
 	const speakers = options.speakerId.map((id) => ({speakerId: id}));
@@ -1038,7 +1058,7 @@ export async function createFlowSpeech(
 	}
 }
 
-export async function getFlowSpeech(
+async function getFlowSpeech(
 	client: OpenAPIClient,
 	episodeId: string,
 	json: boolean,
@@ -1059,10 +1079,18 @@ export async function getFlowSpeech(
 	]);
 }
 
-export async function createFlowSpeechTts(
+async function createFlowSpeechTts(
 	client: OpenAPIClient,
 	options: FlowSpeechTtsOptions,
 ): Promise<void> {
+	if (options.speakerId.length === 0) {
+		throw new Error('At least one --speaker-id is required');
+	}
+
+	if (options.script.length === 0) {
+		throw new Error('At least one --script is required');
+	}
+
 	const scripts = options.script.map((content, i) => ({
 		content,
 		speakerId: options.speakerId[i] ?? options.speakerId[0]!,
@@ -1101,7 +1129,7 @@ export async function createFlowSpeechTts(
 	}
 }
 
-export async function streamFlowSpeechText(
+async function streamFlowSpeechText(
 	client: OpenAPIClient,
 	episodeId: string,
 	event: 'script' | 'outline',
@@ -1123,28 +1151,8 @@ export async function streamFlowSpeechText(
 		}
 	}
 }
-```
 
-- [ ] **Step 2: Register flow-speech commands in `_cli.ts`**
-
-Add import:
-
-```ts
-import {createFlowSpeech, createFlowSpeechTts, getFlowSpeech, streamFlowSpeechText} from './flow-speech.js';
-```
-
-Add a `collect` helper at the top of the file (outside `register`):
-
-```ts
-function collect(value: string, previous: string[]): string[] {
-	return [...previous, value];
-}
-```
-
-Add command registrations:
-
-```ts
-	// --- Flow Speech ---
+export function register(openapi: Command) {
 	const flowSpeech = openapi.command('flow-speech').description('Flow speech generation');
 
 	flowSpeech
@@ -1152,7 +1160,7 @@ Add command registrations:
 		.description('Create a flow speech episode')
 		.option('--source-url <url>', 'Source URL (repeatable)', collect, [])
 		.option('--source-text <text>', 'Source text (repeatable)', collect, [])
-		.requiredOption('--speaker-id <id>', 'Speaker ID (repeatable)', collect, [])
+		.option('--speaker-id <id>', 'Speaker ID (repeatable)', collect, [])
 		.option('--mode <mode>', 'Mode: smart, direct', 'smart')
 		.option('--lang <lang>', 'Language')
 		.option('--no-wait', 'Return immediately')
@@ -1183,8 +1191,8 @@ Add command registrations:
 	flowSpeech
 		.command('tts')
 		.description('Create flow speech from scripts')
-		.requiredOption('--script <content>', 'Script content (repeatable)', collect, [])
-		.requiredOption('--speaker-id <id>', 'Speaker ID (repeatable)', collect, [])
+		.option('--script <content>', 'Script content (repeatable)', collect, [])
+		.option('--speaker-id <id>', 'Speaker ID (repeatable)', collect, [])
 		.option('--title <title>', 'Episode title')
 		.option('--no-wait', 'Return immediately')
 		.option('--timeout <seconds>', 'Polling timeout', Number, 300)
@@ -1210,6 +1218,15 @@ Add command registrations:
 				handleError(error, false);
 			}
 		});
+}
+```
+
+- [ ] **Step 2: Add to `_cli.ts` dispatcher**
+
+```ts
+import {register as registerFlowSpeech} from './flow-speech.js';
+// inside register():
+registerFlowSpeech(openapi);
 ```
 
 - [ ] **Step 3: Build and lint**
@@ -1232,21 +1249,29 @@ git commit -m "feat(openapi): add flow-speech create/get/tts/text-stream command
 
 **Files:**
 - Create: `source/openapi/podcast.ts`
-- Modify: `source/openapi/_cli.ts`
+- Modify: `source/openapi/_cli.ts` (one-line import + call)
 
-- [ ] **Step 1: Implement podcast module**
+**Pattern:** Self-registering module — exports `register(openapi: Command)`. Uses `.option()` (not `.requiredOption()`) for repeatable fields, validates non-empty in implementation. Add `registerPodcast(openapi)` call in `_cli.ts`.
+
+- [ ] **Step 1: Implement podcast module with self-registration**
 
 Create `source/openapi/podcast.ts`:
 
 ```ts
+import type {Command} from 'commander';
 import type {OpenAPIClient, OpenAPIPodcastDetail} from '@marswave/listenhub-sdk';
-import {printDetail, printJson} from '../_shared/output.js';
+import {handleError, printDetail, printJson} from '../_shared/output.js';
+import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
-export type PodcastCreateOptions = {
+function collect(value: string, previous: string[]): string[] {
+	return [...previous, value];
+}
+
+type PodcastCreateOptions = {
 	query?: string;
-	sourceUrl?: string[];
-	sourceText?: string[];
+	sourceUrl: string[];
+	sourceText: string[];
 	speakerId: string[];
 	mode?: string;
 	lang?: string;
@@ -1255,9 +1280,10 @@ export type PodcastCreateOptions = {
 	json: boolean;
 };
 
-export type PodcastTextContentOptions = {
+type PodcastTextContentOptions = {
 	query?: string;
-	sourceUrl?: string[];
+	sourceUrl: string[];
+	sourceText: string[];
 	speakerId: string[];
 	mode?: string;
 	wait: boolean;
@@ -1265,13 +1291,17 @@ export type PodcastTextContentOptions = {
 	json: boolean;
 };
 
-export async function createPodcast(
+async function createPodcast(
 	client: OpenAPIClient,
 	options: PodcastCreateOptions,
 ): Promise<void> {
+	if (options.speakerId.length === 0) {
+		throw new Error('At least one --speaker-id is required');
+	}
+
 	const sources = [
-		...(options.sourceUrl ?? []).map((content) => ({type: 'url' as const, content})),
-		...(options.sourceText ?? []).map((content) => ({type: 'text' as const, content})),
+		...options.sourceUrl.map((content) => ({type: 'url' as const, content})),
+		...options.sourceText.map((content) => ({type: 'text' as const, content})),
 	];
 
 	const speakers = options.speakerId.map((id) => ({speakerId: id}));
@@ -1314,7 +1344,7 @@ export async function createPodcast(
 	}
 }
 
-export async function getPodcast(
+async function getPodcast(
 	client: OpenAPIClient,
 	episodeId: string,
 	json: boolean,
@@ -1336,11 +1366,23 @@ export async function getPodcast(
 	]);
 }
 
-export async function createTextContent(
+async function createTextContent(
 	client: OpenAPIClient,
 	options: PodcastTextContentOptions,
 ): Promise<void> {
-	const sources = (options.sourceUrl ?? []).map((content) => ({type: 'url' as const, content}));
+	if (options.speakerId.length === 0) {
+		throw new Error('At least one --speaker-id is required');
+	}
+
+	if (!options.query && options.sourceUrl.length === 0 && options.sourceText.length === 0) {
+		throw new Error('At least one of --query, --source-url, or --source-text is required');
+	}
+
+	const sources = [
+		...options.sourceUrl.map((content) => ({type: 'url' as const, content})),
+		...options.sourceText.map((content) => ({type: 'text' as const, content})),
+	];
+
 	const speakers = options.speakerId.map((id) => ({speakerId: id}));
 
 	const {episodeId} = await client.createPodcastTextContent({
@@ -1379,7 +1421,7 @@ export async function createTextContent(
 	}
 }
 
-export async function generateAudio(
+async function generateAudio(
 	client: OpenAPIClient,
 	episodeId: string,
 	options: {wait: boolean; timeout: number; json: boolean},
@@ -1415,7 +1457,7 @@ export async function generateAudio(
 	}
 }
 
-export async function streamPodcastText(
+async function streamPodcastText(
 	client: OpenAPIClient,
 	episodeId: string,
 	event: 'script' | 'outline',
@@ -1437,20 +1479,8 @@ export async function streamPodcastText(
 		}
 	}
 }
-```
 
-- [ ] **Step 2: Register podcast commands in `_cli.ts`**
-
-Add import:
-
-```ts
-import {createPodcast, createTextContent, generateAudio, getPodcast, streamPodcastText} from './podcast.js';
-```
-
-Add command registrations:
-
-```ts
-	// --- Podcast ---
+export function register(openapi: Command) {
 	const podcast = openapi.command('podcast').description('Podcast generation');
 
 	podcast
@@ -1459,7 +1489,7 @@ Add command registrations:
 		.option('--query <text>', 'Topic text')
 		.option('--source-url <url>', 'Source URL (repeatable)', collect, [])
 		.option('--source-text <text>', 'Source text (repeatable)', collect, [])
-		.requiredOption('--speaker-id <id>', 'Speaker ID (repeatable)', collect, [])
+		.option('--speaker-id <id>', 'Speaker ID (repeatable)', collect, [])
 		.option('--mode <mode>', 'Generation mode')
 		.option('--lang <lang>', 'Language')
 		.option('--no-wait', 'Return immediately')
@@ -1492,7 +1522,8 @@ Add command registrations:
 		.description('Generate podcast text only (no audio)')
 		.option('--query <text>', 'Topic text')
 		.option('--source-url <url>', 'Source URL (repeatable)', collect, [])
-		.requiredOption('--speaker-id <id>', 'Speaker ID (repeatable)', collect, [])
+		.option('--source-text <text>', 'Source text (repeatable)', collect, [])
+		.option('--speaker-id <id>', 'Speaker ID (repeatable)', collect, [])
 		.option('--mode <mode>', 'Generation mode')
 		.option('--no-wait', 'Return immediately')
 		.option('--timeout <seconds>', 'Polling timeout', Number, 300)
@@ -1533,6 +1564,15 @@ Add command registrations:
 				handleError(error, false);
 			}
 		});
+}
+```
+
+- [ ] **Step 2: Add to `_cli.ts` dispatcher**
+
+```ts
+import {register as registerPodcast} from './podcast.js';
+// inside register():
+registerPodcast(openapi);
 ```
 
 - [ ] **Step 3: Build and lint**
@@ -1555,7 +1595,9 @@ git commit -m "feat(openapi): add podcast create/get/text-content/generate-audio
 
 **Files:**
 - Create: `source/openapi/storybook.ts`
-- Modify: `source/openapi/_cli.ts`
+- Modify: `source/openapi/_cli.ts` (one-line import + call)
+
+**Pattern:** Self-registering module. Exports `register(openapi: Command)`. Uses `.option()` for repeatable `--speaker-id` with non-empty validation in implementation. Add `registerStorybook(openapi)` call in `_cli.ts`.
 
 - [ ] **Step 1: Implement storybook module**
 
@@ -1752,7 +1794,9 @@ git commit -m "feat(openapi): add storybook create/get/generate-video commands"
 
 **Files:**
 - Create: `source/openapi/image.ts`
-- Modify: `source/openapi/_cli.ts`
+- Modify: `source/openapi/_cli.ts` (one-line import + call)
+
+**Pattern:** Self-registering module. Exports `register(openapi: Command)`. Add `registerImage(openapi)` call in `_cli.ts`.
 
 - [ ] **Step 1: Implement image module**
 
@@ -1885,7 +1929,9 @@ git commit -m "feat(openapi): add image create command with base64 reference sup
 
 **Files:**
 - Create: `source/openapi/video.ts`
-- Modify: `source/openapi/_cli.ts`
+- Modify: `source/openapi/_cli.ts` (one-line import + call)
+
+**Pattern:** Self-registering module. Exports `register(openapi: Command)`. Add `registerVideo(openapi)` call in `_cli.ts`. Video only accepts URLs (no local file upload), so no `resolveFileOrUrl()` needed.
 
 - [ ] **Step 1: Implement video module**
 
@@ -2267,7 +2313,9 @@ git commit -m "feat(openapi): add video create/get/list/estimate commands"
 **Files:**
 - Create: `source/openapi/content.ts`
 - Create: `source/openapi/subscription.ts`
-- Modify: `source/openapi/_cli.ts`
+- Modify: `source/openapi/_cli.ts` (two imports + calls)
+
+**Pattern:** Self-registering modules. Each exports `register(openapi: Command)`. Add `registerContent(openapi)` and `registerSubscription(openapi)` calls in `_cli.ts`.
 
 - [ ] **Step 1: Implement content module**
 
@@ -2463,19 +2511,123 @@ git commit -m "feat(openapi): add content extract/get and subscription commands"
 
 ---
 
-### Task 15: Final Integration Test & Cleanup
+### Task 15: Integration Tests & Final Verification
 
 **Files:**
-- All `source/openapi/` files
+- Create: `tests/openapi/commands.test.ts`
+- All `source/openapi/` files (verified)
 
-- [ ] **Step 1: Full build + lint + type check**
+- [ ] **Step 1: Write integration tests (mocked OpenAPIClient)**
+
+Create `tests/openapi/commands.test.ts`:
+
+```ts
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+
+// Mock the client factory to return a mock OpenAPIClient
+const mockClient = {
+	listSpeakers: vi.fn(),
+	speech: vi.fn(),
+	createFlowSpeech: vi.fn(),
+	getFlowSpeech: vi.fn(),
+	createPodcast: vi.fn(),
+	getPodcast: vi.fn(),
+	createPodcastTextContent: vi.fn(),
+	generatePodcastAudio: vi.fn(),
+	createStorybook: vi.fn(),
+	getStorybook: vi.fn(),
+	createImage: vi.fn(),
+	createVideoGeneration: vi.fn(),
+	getVideoGenerationTask: vi.fn(),
+	listVideoGenerationTasks: vi.fn(),
+	estimateVideoCredits: vi.fn(),
+	createContentExtract: vi.fn(),
+	getContentExtract: vi.fn(),
+	getSubscription: vi.fn(),
+};
+
+vi.mock('../../source/openapi/client.js', () => ({
+	getOpenAPIClient: vi.fn().mockResolvedValue(mockClient),
+}));
+
+vi.mock('ora', () => ({
+	default: () => ({start: () => ({text: '', succeed: vi.fn(), fail: vi.fn()})}),
+}));
+
+describe('openapi speakers list', () => {
+	it('passes language filter to SDK', async () => {
+		mockClient.listSpeakers.mockResolvedValue({items: [{name: 'Alice', speakerId: 'sp1', gender: 'female', language: 'en'}]});
+		const {listSpeakers} = await import('../../source/openapi/speakers.js');
+		// Note: import the internal function, not the register
+		// Test that correct params are passed
+		expect(mockClient.listSpeakers).toBeDefined();
+	});
+});
+
+describe('openapi speech', () => {
+	it('passes script and speakerId to SDK', async () => {
+		mockClient.speech.mockResolvedValue({audioUrl: 'https://x', audioDuration: 10, credits: 5});
+		// Verify param mapping
+		expect(mockClient.speech).toBeDefined();
+	});
+});
+
+describe('openapi podcast create', () => {
+	it('rejects empty speaker-id', async () => {
+		const {default: podcast} = await import('../../source/openapi/podcast.js');
+		// Validation should throw before SDK call
+		expect(mockClient.createPodcast).toBeDefined();
+	});
+});
+
+describe('openapi video create', () => {
+	it('rejects mixing frame mode and reference mode', async () => {
+		// Validation logic test
+		expect(true).toBe(true);
+	});
+
+	it('passes content array correctly', async () => {
+		mockClient.createVideoGeneration.mockResolvedValue({taskId: 'v1'});
+		expect(mockClient.createVideoGeneration).toBeDefined();
+	});
+});
+
+describe('openapi content extract', () => {
+	it('passes url and options to SDK', async () => {
+		mockClient.createContentExtract.mockResolvedValue({taskId: 't1'});
+		expect(mockClient.createContentExtract).toBeDefined();
+	});
+});
+
+describe('openapi subscription', () => {
+	it('returns subscription info', async () => {
+		mockClient.getSubscription.mockResolvedValue({totalAvailableCredits: 100});
+		expect(mockClient.getSubscription).toBeDefined();
+	});
+});
+```
+
+Note: This is a scaffold. The implementing agent should expand each test to actually call the implementation functions with mock clients and verify:
+1. Correct SDK method is called with expected params
+2. Output format matches spec (JSON mode vs human readable)
+3. Validation errors throw before SDK call
+4. Polling conditions are checked correctly
+
+- [ ] **Step 2: Run tests**
 
 ```bash
-pnpm run ready
+pnpm test run
 ```
-Expected: PASS
+Expected: ALL PASS
 
-- [ ] **Step 2: Verify CLI help output**
+- [ ] **Step 3: Full build + lint + type check (explicit)**
+
+```bash
+pnpm run lint && pnpm run build && pnpm test run
+```
+Expected: ALL PASS. This is the definitive pre-PR gate — do NOT use `pnpm run ready` alone as it may not include `build`.
+
+- [ ] **Step 4: Verify CLI help output**
 
 ```bash
 node dist/cli.mjs openapi --help
@@ -2486,7 +2638,7 @@ node dist/cli.mjs openapi video --help
 
 Verify all commands appear with correct descriptions.
 
-- [ ] **Step 3: Smoke test with real API Key (manual)**
+- [ ] **Step 5: Smoke test with real API Key (manual)**
 
 ```bash
 export LISTENHUB_API_KEY="lh_sk_..."
@@ -2496,14 +2648,14 @@ node dist/cli.mjs openapi speakers list --language zh
 
 Expected: Valid JSON response or formatted table.
 
-- [ ] **Step 4: Final commit (if any lint fixes needed)**
+- [ ] **Step 6: Final commit (if any fixes needed)**
 
 ```bash
 git add -A
-git commit -m "chore(openapi): lint fixes and final cleanup"
+git commit -m "test(openapi): add integration tests for command arg mapping"
 ```
 
-- [ ] **Step 5: Push branch**
+- [ ] **Step 7: Push branch**
 
 ```bash
 git push origin ralph/listenhub-cli--134
