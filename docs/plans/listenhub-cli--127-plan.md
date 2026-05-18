@@ -8,6 +8,7 @@
 ### Step 1: 升级 SDK + 扩展 upload 工具
 
 **文件：`package.json`**
+
 - `@marswave/listenhub-sdk` 从 `^0.0.4` 改为 `^0.0.6`
 - `"version"` 从 `"0.0.4"` 升为 `"0.0.5"`（新增功能，minor bump）
 - 运行 `pnpm install` 更新 lockfile
@@ -15,11 +16,13 @@
 **文件：`source/_shared/upload.ts`**
 
 1. 新增 `video` accept type：
+
    ```ts
    type FileAcceptType = 'audio' | 'image' | 'video';
    ```
 
 2. 新增视频相关常量（SeeDance 仅支持 mp4/mov，单文件 < 50MB）：
+
    ```ts
    const videoExtensions = new Set(['.mp4', '.mov']);
    // maxSizeBytes
@@ -35,19 +38,19 @@
    在 `resolveFileOrUrl` 调用时，video 命令对 audio 类型传 `{ accept: 'audio', category: 'episode' }` ——
    但需新增一个 `videoAudioExtensions` 集合做额外校验（或在 video.ts 校验层先过滤后缀），
    避免用户传 `.flac`/`.ogg` 等 CLI 层面放行但 provider 拒绝的格式。
-   
+
    实现方式：在 `video.ts` 的 `validateCreateOptions` 中检查 `--reference-audio` 文件后缀，
    不在 `['.mp3', '.wav']` 内的直接报错：`Reference audio must be .mp3 or .wav`。
 
-3. `allowedExtensions` 函数扩展 video 分支。
+4. `allowedExtensions` 函数扩展 video 分支。
 
-4. `resolveFileOrUrl` 签名增加可选 `category` override：
+5. `resolveFileOrUrl` 签名增加可选 `category` override：
    ```ts
    export async function resolveFileOrUrl(
-     client: ListenHubClient,
-     input: string,
-     options: { accept: FileAcceptType; category?: string },
-   ): Promise<string>
+   	client: ListenHubClient,
+   	input: string,
+   	options: {accept: FileAcceptType; category?: string},
+   ): Promise<string>;
    ```
    内部 `const category = options.category ?? categoryForType[options.accept];`
 
@@ -60,36 +63,36 @@
 在文件末尾新增 `pollVideoTaskUntilDone`：
 
 ```ts
-import type { VideoGenerationTaskDetail } from '@marswave/listenhub-sdk';
+import type {VideoGenerationTaskDetail} from '@marswave/listenhub-sdk';
 
 export async function pollVideoTaskUntilDone(
-  client: ListenHubClient,
-  taskId: string,
-  options: { timeout?: number; json?: boolean },
+	client: ListenHubClient,
+	taskId: string,
+	options: {timeout?: number; json?: boolean},
 ): Promise<VideoGenerationTaskDetail> {
-  const timeoutS = options.timeout ?? 1200;
-  const maxAttempts = Math.ceil(timeoutS / (pollIntervalMs / 1000));
-  const spinner = options.json
-    ? undefined
-    : ora({ text: `Generating video... (1/${maxAttempts})` }).start();
+	const timeoutS = options.timeout ?? 1200;
+	const maxAttempts = Math.ceil(timeoutS / (pollIntervalMs / 1000));
+	const spinner = options.json
+		? undefined
+		: ora({text: `Generating video... (1/${maxAttempts})`}).start();
 
-  for (let i = 0; i < maxAttempts; i++) {
-    if (i > 0) await sleep(pollIntervalMs);
-    const task = await client.getVideoGenerationTask(taskId);
-    if (task.status === 'success') {
-      spinner?.succeed('Video created successfully');
-      return task;
-    }
-    if (task.status === 'failed') {
-      spinner?.fail('Video creation failed');
-      throw new Error('Video creation failed');
-    }
-    if (spinner) {
-      spinner.text = `Generating video... (${String(i + 2)}/${maxAttempts})`;
-    }
-  }
-  spinner?.fail('Timed out');
-  throw new CliTimeoutError(`Timed out after ${timeoutS}s`);
+	for (let i = 0; i < maxAttempts; i++) {
+		if (i > 0) await sleep(pollIntervalMs);
+		const task = await client.getVideoGenerationTask(taskId);
+		if (task.status === 'success') {
+			spinner?.succeed('Video created successfully');
+			return task;
+		}
+		if (task.status === 'failed') {
+			spinner?.fail('Video creation failed');
+			throw new Error('Video creation failed');
+		}
+		if (spinner) {
+			spinner.text = `Generating video... (${String(i + 2)}/${maxAttempts})`;
+		}
+	}
+	spinner?.fail('Timed out');
+	throw new CliTimeoutError(`Timed out after ${timeoutS}s`);
 }
 ```
 
@@ -105,22 +108,22 @@ export async function pollVideoTaskUntilDone(
 
 ```ts
 export type VideoCreateOptions = {
-  prompt: string;
-  model?: string;
-  resolution?: string;
-  ratio?: string;
-  duration?: number;
-  firstFrame?: string;
-  lastFrame?: string;
-  referenceImage: string[];
-  referenceVideo: string[];
-  referenceAudio: string[];
-  inputVideoDuration?: number;
-  generateAudio: boolean; // Commander --no-generate-audio 会反转为 generateAudio: false
-  seed?: number;
-  wait: boolean;
-  timeout: number;
-  json: boolean;
+	prompt: string;
+	model?: string;
+	resolution?: string;
+	ratio?: string;
+	duration?: number;
+	firstFrame?: string;
+	lastFrame?: string;
+	referenceImage: string[];
+	referenceVideo: string[];
+	referenceAudio: string[];
+	inputVideoDuration?: number;
+	generateAudio: boolean; // Commander --no-generate-audio 会反转为 generateAudio: false
+	seed?: number;
+	wait: boolean;
+	timeout: number;
+	json: boolean;
 };
 ```
 
@@ -133,6 +136,7 @@ export type VideoCreateOptions = {
    - `--reference-video` 文件后缀不在 `.mp4`/`.mov` 内 → 报错 `Reference video must be .mp4 or .mov`
 
 2. **构建 content 数组：**
+
    ```ts
    const content: VideoContentItem[] = [];
    // prompt → { type: 'text', text: options.prompt }
@@ -147,16 +151,19 @@ export type VideoCreateOptions = {
    ```
 
 3. **构建请求参数：** 只传用户显式指定的字段。
+
    ```ts
    const params: CreateVideoGenerationParams = {
-     content,
-     ...(options.model && { model: options.model }),
-     ...(options.resolution && { resolution: options.resolution }),
-     ...(options.ratio && { ratio: options.ratio }),
-     ...(options.duration !== undefined && { duration: options.duration }),
-     ...(!options.generateAudio && { generateAudio: false }),
-     ...(options.seed !== undefined && { seed: options.seed }),
-     ...(options.inputVideoDuration !== undefined && { inputVideoDuration: options.inputVideoDuration }),
+   	content,
+   	...(options.model && {model: options.model}),
+   	...(options.resolution && {resolution: options.resolution}),
+   	...(options.ratio && {ratio: options.ratio}),
+   	...(options.duration !== undefined && {duration: options.duration}),
+   	...(!options.generateAudio && {generateAudio: false}),
+   	...(options.seed !== undefined && {seed: options.seed}),
+   	...(options.inputVideoDuration !== undefined && {
+   		inputVideoDuration: options.inputVideoDuration,
+   	}),
    };
    ```
 
@@ -241,9 +248,9 @@ export function register(program: Command) {
 **文件：`source/cli.ts`**
 
 ```ts
-import { register as registerVideo } from './video/_cli.js';
+import {register as registerVideo} from './video/_cli.js';
 // ...
-registerVideo(program);  // 放在 registerCreation 之前
+registerVideo(program); // 放在 registerCreation 之前
 ```
 
 ---
@@ -253,6 +260,7 @@ registerVideo(program);  // 放在 registerCreation 之前
 **文件：`README.md`**
 
 1. Commands 表新增 Video 部分：
+
    ```
    ### Video Generation
 
@@ -307,16 +315,16 @@ node dist/cli.js video estimate --help
 
 ## 文件清单
 
-| 文件 | 操作 | 行数估算 |
-|------|------|----------|
-| `package.json` | 修改 | ~1 行 |
-| `source/_shared/upload.ts` | 修改 | +15 行 |
-| `source/_shared/polling.ts` | 修改 | +30 行 |
-| `source/video/video.ts` | 新增 | ~200 行 |
-| `source/video/_cli.ts` | 新增 | ~90 行 |
-| `source/cli.ts` | 修改 | +2 行 |
-| `README.md` | 修改 | +25 行 |
-| `README.zh-CN.md` | 修改 | +25 行 |
+| 文件                        | 操作 | 行数估算 |
+| --------------------------- | ---- | -------- |
+| `package.json`              | 修改 | ~1 行    |
+| `source/_shared/upload.ts`  | 修改 | +15 行   |
+| `source/_shared/polling.ts` | 修改 | +30 行   |
+| `source/video/video.ts`     | 新增 | ~200 行  |
+| `source/video/_cli.ts`      | 新增 | ~90 行   |
+| `source/cli.ts`             | 修改 | +2 行    |
+| `README.md`                 | 修改 | +25 行   |
+| `README.zh-CN.md`           | 修改 | +25 行   |
 
 总新增约 340 行代码。
 
