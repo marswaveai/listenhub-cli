@@ -4,6 +4,7 @@ import type {
 	ListenHubClient,
 	LyricsTaskDetail,
 	MusicTaskDetail,
+	VideoGenerationTaskDetail,
 } from '@marswave/listenhub-sdk';
 import ora from 'ora';
 import {CliTimeoutError} from './output.js';
@@ -120,6 +121,42 @@ export async function pollMusicTaskUntilDone(
 
 		if (spinner) {
 			spinner.text = `Creating music... (${String(i + 2)}/${maxAttempts})`;
+		}
+	}
+
+	spinner?.fail('Timed out');
+	throw new CliTimeoutError(`Timed out after ${timeoutS}s`);
+}
+
+export async function pollVideoTaskUntilDone(
+	client: ListenHubClient,
+	taskId: string,
+	options: {timeout?: number; json?: boolean},
+): Promise<VideoGenerationTaskDetail> {
+	const timeoutS = options.timeout ?? 1200;
+	const maxAttempts = Math.ceil(timeoutS / (pollIntervalMs / 1000));
+	const spinner = options.json
+		? undefined
+		: ora({text: `Generating video... (1/${maxAttempts})`}).start();
+
+	for (let i = 0; i < maxAttempts; i++) {
+		if (i > 0) {
+			await sleep(pollIntervalMs); // eslint-disable-line no-await-in-loop
+		}
+
+		const task = await client.getVideoGenerationTask(taskId); // eslint-disable-line no-await-in-loop
+		if (task.status === 'success') {
+			spinner?.succeed('Video created successfully');
+			return task;
+		}
+
+		if (task.status === 'failed') {
+			spinner?.fail('Video creation failed');
+			throw new Error('Video creation failed');
+		}
+
+		if (spinner) {
+			spinner.text = `Generating video... (${String(i + 2)}/${maxAttempts})`;
 		}
 	}
 
