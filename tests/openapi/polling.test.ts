@@ -34,7 +34,7 @@ describe('pollOpenAPI', () => {
 			getStatus,
 			isDone: (r: {processStatus: string}) => r.processStatus === 'success',
 			isFailed: (r: {processStatus: string}) => r.processStatus === 'failed',
-			getErrorMessage: (r: {message?: string; failCode?: number}) =>
+			getErrorMessage: (r: {processStatus: string; message?: string; failCode?: number}) =>
 				`${r.message ?? 'Unknown'} (code: ${String(r.failCode ?? 0)})`,
 			options: {timeout: 60, json: true},
 		});

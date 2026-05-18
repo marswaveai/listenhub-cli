@@ -11,6 +11,7 @@ import {register as registerSlides} from './slides/_cli.js';
 import {register as registerSpeakers} from './speakers/_cli.js';
 import {register as registerTts} from './tts/_cli.js';
 import {register as registerVideo} from './video/_cli.js';
+import {register as registerOpenApi} from './openapi/_cli.js';
 
 const program = new Command();
 program.name('listenhub').description('ListenHub CLI').version('0.1.0');
@@ -26,5 +27,6 @@ registerLyrics(program);
 registerSpeakers(program);
 registerVideo(program);
 registerCreation(program);
+registerOpenApi(program);
 
 program.parse();
