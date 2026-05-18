@@ -2,19 +2,22 @@ import {access, readFile, stat} from 'node:fs/promises';
 import path from 'node:path';
 import type {ListenHubClient} from '@marswave/listenhub-sdk';
 
-type FileAcceptType = 'audio' | 'image';
+type FileAcceptType = 'audio' | 'image' | 'video';
 
 const audioExtensions = new Set(['.mp3', '.wav', '.flac', '.m4a', '.ogg', '.aac']);
 const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const videoExtensions = new Set(['.mp4', '.mov']);
 
 const maxSizeBytes: Record<FileAcceptType, number> = {
 	audio: 20 * 1024 * 1024,
 	image: 10 * 1024 * 1024,
+	video: 50 * 1024 * 1024,
 };
 
 const categoryForType: Record<FileAcceptType, string> = {
 	audio: 'episode',
 	image: 'banana',
+	video: 'episode',
 };
 
 const mimeTypes = new Map<string, string>([
@@ -29,16 +32,20 @@ const mimeTypes = new Map<string, string>([
 	['.png', 'image/png'],
 	['.webp', 'image/webp'],
 	['.gif', 'image/gif'],
+	['.mp4', 'video/mp4'],
+	['.mov', 'video/quicktime'],
 ]);
 
 function allowedExtensions(accept: FileAcceptType): Set<string> {
-	return accept === 'audio' ? audioExtensions : imageExtensions;
+	if (accept === 'audio') return audioExtensions;
+	if (accept === 'video') return videoExtensions;
+	return imageExtensions;
 }
 
 export async function resolveFileOrUrl(
 	client: ListenHubClient,
 	input: string,
-	options: {accept: FileAcceptType},
+	options: {accept: FileAcceptType; category?: string},
 ): Promise<string> {
 	const trimmed = input.trim();
 
@@ -77,7 +84,7 @@ export async function resolveFileOrUrl(
 	// Get presigned upload URL
 	const contentType = mimeTypes.get(ext)!;
 	const fileKey = path.basename(filePath);
-	const category = categoryForType[options.accept];
+	const category = options.category ?? categoryForType[options.accept];
 	const {presignedUrl, fileUrl} = await client.createFileUpload({
 		fileKey,
 		contentType,

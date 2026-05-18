@@ -1,6 +1,6 @@
 # ListenHub CLI
 
-[ListenHub](https://listenhub.ai) 的命令行工具 — 在终端里创建播客、语音合成、讲解视频、幻灯片、AI 图片和音乐。
+[ListenHub](https://listenhub.ai) 的命令行工具 — 在终端里创建播客、语音合成、讲解视频、幻灯片、AI 图片、音乐和视频。
 
 [English](README.md)
 
@@ -76,6 +76,15 @@ listenhub tts create --text "你好世界" --lang zh
 | `listenhub image list`     | 列出图片     |
 | `listenhub image get <id>` | 查看图片详情 |
 
+### 视频生成
+
+| 命令                       | 说明             |
+| -------------------------- | ---------------- |
+| `listenhub video create`   | 创建视频生成任务 |
+| `listenhub video list`     | 列出视频任务     |
+| `listenhub video get <id>` | 查看视频任务详情 |
+| `listenhub video estimate` | 预估积分消耗     |
+
 ### 其他
 
 | 命令                                | 说明         |
@@ -100,7 +109,7 @@ listenhub tts create --text "你好世界" --lang zh
 
 ## 本地文件上传
 
-`music cover` 和 `image create` 支持引用本地文件。CLI 自动检测本地路径，校验格式和大小，上传到云存储后传给 API。
+`music cover`、`image create` 和 `video create` 支持引用本地文件。CLI 自动检测本地路径，校验格式和大小，上传到云存储后传给 API。
 
 ```bash
 # 本地音频文件用于翻唱（mp3, wav, flac, m4a, ogg, aac；最大 20MB）
@@ -108,6 +117,9 @@ listenhub music cover --audio ./song.mp3
 
 # 本地图片用于参考（jpg, png, webp, gif；最大 10MB）
 listenhub image create --prompt "以此为灵感" --reference ./photo.jpg
+
+# 本地视频用于参考（mp4, mov；最大 50MB）
+listenhub video create --prompt "同样风格" --reference-video ./clip.mp4 --input-video-duration 5
 
 # URL 直接透传
 listenhub music cover --audio https://example.com/song.mp3
@@ -156,6 +168,23 @@ listenhub image create \
   --reference ./sketch.jpg \
   --reference ./palette.png \
   --aspect-ratio 16:9 --size 4K
+```
+
+### 视频生成
+
+```bash
+# 文字生成视频
+listenhub video create --prompt "一只猫在爵士酒吧弹钢琴"
+
+# 图生视频（首帧）
+listenhub video create --prompt "镜头缓缓拉远" --first-frame ./scene.png
+
+# 带参考视频
+listenhub video create --prompt "相同风格的舞蹈" \
+  --reference-video ./clip.mp4 --input-video-duration 8
+
+# 预估积分
+listenhub video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10
 ```
 
 ### 脚本中使用 JSON 输出

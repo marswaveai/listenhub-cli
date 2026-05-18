@@ -1,6 +1,6 @@
 # ListenHub CLI
 
-Command-line interface for [ListenHub](https://listenhub.ai) — create podcasts, text-to-speech, explainer videos, slides, AI images, and music from your terminal.
+Command-line interface for [ListenHub](https://listenhub.ai) — create podcasts, text-to-speech, explainer videos, slides, AI images, music, and videos from your terminal.
 
 [中文文档](README.zh-CN.md)
 
@@ -76,6 +76,15 @@ listenhub tts create --text "Hello, world" --lang en
 | `listenhub image list`     | List AI images       |
 | `listenhub image get <id>` | Get image details    |
 
+### Video Generation
+
+| Command                    | Description                    |
+| -------------------------- | ------------------------------ |
+| `listenhub video create`   | Create a video generation task |
+| `listenhub video list`     | List video tasks               |
+| `listenhub video get <id>` | Get video task details         |
+| `listenhub video estimate` | Estimate credit cost           |
+
 ### Other
 
 | Command                             | Description             |
@@ -108,6 +117,9 @@ listenhub music cover --audio ./song.mp3
 
 # Local image for reference (jpg, png, webp, gif; max 10MB)
 listenhub image create --prompt "inspired by this" --reference ./photo.jpg
+
+# Local video for reference (mp4, mov; max 50MB)
+listenhub video create --prompt "same style" --reference-video ./clip.mp4 --input-video-duration 5
 
 # URLs are passed through directly
 listenhub music cover --audio https://example.com/song.mp3
@@ -156,6 +168,23 @@ listenhub image create \
   --reference ./sketch.jpg \
   --reference ./palette.png \
   --aspect-ratio 16:9 --size 4K
+```
+
+### Video generation
+
+```bash
+# Text-to-video
+listenhub video create --prompt "A cat playing piano in a jazz bar"
+
+# Image-to-video (first frame)
+listenhub video create --prompt "Camera slowly zooms out" --first-frame ./scene.png
+
+# With reference video
+listenhub video create --prompt "Same style dancing" \
+  --reference-video ./clip.mp4 --input-video-duration 8
+
+# Estimate credits
+listenhub video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10
 ```
 
 ### JSON output for scripting
