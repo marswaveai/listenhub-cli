@@ -4,6 +4,7 @@ import {register as registerSpeakers} from './speakers.js';
 import {register as registerTts} from './tts.js';
 import {register as registerFlowSpeech} from './flow-speech.js';
 import {register as registerPodcast} from './podcast.js';
+import {register as registerStorybook} from './storybook.js';
 
 export function register(program: Command) {
 	const openapi = program.command('openapi').description('OpenAPI Key–based commands');
@@ -12,4 +13,5 @@ export function register(program: Command) {
 	registerTts(openapi);
 	registerFlowSpeech(openapi);
 	registerPodcast(openapi);
+	registerStorybook(openapi);
 }
