@@ -9,6 +9,7 @@
 
 **文件：`package.json`**
 - `@marswave/listenhub-sdk` 从 `^0.0.4` 改为 `^0.0.6`
+- `"version"` 从 `"0.0.4"` 升为 `"0.0.5"`（新增功能，minor bump）
 - 运行 `pnpm install` 更新 lockfile
 
 **文件：`source/_shared/upload.ts`**
@@ -286,20 +287,21 @@ registerVideo(program);  // 放在 registerCreation 之前
 
 ---
 
-### Step 7: 构建验证 + Lint + Smoke check
+### Step 7: `vp check` + Smoke check
 
 ```bash
-pnpm lint          # xo 代码规范
-pnpm run build     # TypeScript 编译，确认无类型错误
+# vp check = fmt --check + lint + type check（三合一）
+pnpm check
 
 # Smoke check — 确认命令注册正确
+pnpm build
 node dist/cli.js video --help
 node dist/cli.js video create --help
 node dist/cli.js video list --help
 node dist/cli.js video estimate --help
 ```
 
-若有问题则修复后重新运行。
+若有问题则修复后重新运行。`vp check` 必须全通过才能提交 PR。
 
 ---
 
