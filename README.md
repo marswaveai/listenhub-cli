@@ -1,6 +1,6 @@
 # ListenHub CLI
 
-Command-line interface for [ListenHub](https://listenhub.ai) — create podcasts, text-to-speech, explainer videos, slides, AI images, music, and videos from your terminal.
+Command-line interface for [ListenHub](https://listenhub.ai) — create podcasts, text-to-speech, explainer videos, storybooks, AI images, music, and videos from your terminal.
 
 [中文文档](README.zh-CN.md)
 
@@ -14,7 +14,18 @@ npm install -g @marswave/listenhub-cli
 
 Requires Node.js >= 20.
 
-## Quick Start
+## Two Ways to Authenticate
+
+|               | OAuth Login                                                   | OpenAPI Key                                                               |
+| ------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Setup         | `listenhub auth login` (opens browser)                        | Set `LISTENHUB_API_KEY` env var or run `listenhub openapi config set-key` |
+| Commands      | `listenhub podcast`, `listenhub tts`, `listenhub music`, etc. | `listenhub openapi podcast`, `listenhub openapi tts`, etc.                |
+| Best for      | Interactive use, account management                           | Scripts, CI/CD, programmatic access                                       |
+| Token storage | `~/.config/listenhub/credentials.json`                        | `~/.config/listenhub/openapi.json` or env var                             |
+
+Both methods provide access to the same underlying APIs. Choose whichever fits your workflow.
+
+## Quick Start — OAuth
 
 ```bash
 # Log in via browser
@@ -26,17 +37,39 @@ listenhub podcast create --query "AI agent trends in 2026" --mode quick
 # Generate music
 listenhub music generate --prompt "Chill lo-fi beats" --style "lo-fi" --title "Study Session"
 
-# Create a cover from local audio
-listenhub music cover --audio ./song.mp3 --title "My Cover"
-
-# Generate an AI image with a local reference
-listenhub image create --prompt "a dragon in watercolor style" --reference ./sketch.png
-
 # Text-to-speech
 listenhub tts create --text "Hello, world" --lang en
+
+# Generate an AI image
+listenhub image create --prompt "a dragon in watercolor style" --reference ./sketch.png
 ```
 
-## Commands
+## Quick Start — OpenAPI Key
+
+```bash
+# Set your API key (one-time)
+export LISTENHUB_API_KEY="lh_sk_..."
+# Or interactively:
+listenhub openapi config set-key
+
+# List speakers
+listenhub openapi speakers list --language zh
+
+# Text-to-speech (binary audio output)
+listenhub openapi tts --text "Hello world" --voice <speaker-id> --output hello.mp3
+
+# Create a podcast
+listenhub openapi podcast create \
+  --source-text "Quantum computing is changing cryptography" \
+  --speaker-id <speaker-id> --no-wait -j
+
+# Check subscription credits
+listenhub openapi subscription -j
+```
+
+---
+
+## OAuth Commands
 
 ### Auth
 
@@ -85,6 +118,12 @@ listenhub tts create --text "Hello, world" --lang en
 | `listenhub video get <id>` | Get video task details         |
 | `listenhub video estimate` | Estimate credit cost           |
 
+### Lyrics
+
+| Command                         | Description                    |
+| ------------------------------- | ------------------------------ |
+| `listenhub lyrics extract <id>` | Extract lyrics from a creation |
+
 ### Other
 
 | Command                             | Description             |
@@ -93,7 +132,90 @@ listenhub tts create --text "Hello, world" --lang en
 | `listenhub creation get <id>`       | Get creation details    |
 | `listenhub creation delete <id...>` | Delete creations        |
 
-Run `listenhub <command> --help` for full options.
+---
+
+## OpenAPI Key Commands
+
+All commands below are under `listenhub openapi`.
+
+### Config
+
+| Command                  | Description               |
+| ------------------------ | ------------------------- |
+| `openapi config set-key` | Set API key interactively |
+| `openapi config show`    | Show current key status   |
+| `openapi config clear`   | Remove stored key         |
+
+### Speakers
+
+| Command                 | Description                                          |
+| ----------------------- | ---------------------------------------------------- |
+| `openapi speakers list` | List available speakers (filterable by `--language`) |
+
+### TTS & Speech
+
+| Command                | Description                              |
+| ---------------------- | ---------------------------------------- |
+| `openapi tts`          | Text-to-speech, saves audio file locally |
+| `openapi audio-speech` | TTS (OpenAI-compatible endpoint)         |
+| `openapi speech`       | Create speech, returns audio URL         |
+
+### Flow Speech
+
+| Command                                | Description                       |
+| -------------------------------------- | --------------------------------- |
+| `openapi flow-speech create`           | Create flow speech from URLs/text |
+| `openapi flow-speech get <id>`         | Get flow speech details           |
+| `openapi flow-speech tts`              | Create flow speech from scripts   |
+| `openapi flow-speech text-stream <id>` | Stream generated text (SSE)       |
+
+### Podcast
+
+| Command                               | Description                      |
+| ------------------------------------- | -------------------------------- |
+| `openapi podcast create`              | Create a podcast episode         |
+| `openapi podcast get <id>`            | Get podcast details              |
+| `openapi podcast text-content`        | Generate text only (no audio)    |
+| `openapi podcast generate-audio <id>` | Generate audio for existing text |
+| `openapi podcast text-stream <id>`    | Stream generated text (SSE)      |
+
+### Storybook
+
+| Command                                 | Description                  |
+| --------------------------------------- | ---------------------------- |
+| `openapi storybook create`              | Create a storybook/explainer |
+| `openapi storybook get <id>`            | Get storybook details        |
+| `openapi storybook generate-video <id>` | Generate video for storybook |
+
+### Image
+
+| Command                | Description                                                 |
+| ---------------------- | ----------------------------------------------------------- |
+| `openapi image create` | Generate an AI image (supports local file + URL references) |
+
+### Video
+
+| Command                  | Description                  |
+| ------------------------ | ---------------------------- |
+| `openapi video create`   | Create video generation task |
+| `openapi video get <id>` | Get video task details       |
+| `openapi video list`     | List video tasks             |
+| `openapi video estimate` | Estimate credit cost         |
+
+### Content
+
+| Command                    | Description                |
+| -------------------------- | -------------------------- |
+| `openapi content extract`  | Extract content from a URL |
+| `openapi content get <id>` | Get extraction result      |
+
+### Subscription
+
+| Command                | Description                |
+| ---------------------- | -------------------------- |
+| `openapi subscription` | Show credits and plan info |
+
+---
 
 ## Common Options
 
@@ -107,36 +229,66 @@ Creation commands also support:
 - `--no-wait` — Return the ID immediately without polling
 - `--timeout <seconds>` — Polling timeout (default varies by command)
 
-## Local File Upload
+## Local File Support
 
-`music cover` and `image create` support local file references. The CLI automatically detects local paths, validates format and size, and uploads to cloud storage before passing to the API.
+OAuth commands (`music cover`, `image create`, `video create`) auto-detect local paths, validate format/size, and upload to cloud storage before calling the API.
+
+OpenAPI `image create` supports local file references via base64 encoding (no size limit enforced by CLI).
 
 ```bash
-# Local audio file for cover (mp3, wav, flac, m4a, ogg, aac; max 20MB)
+# OAuth: local audio for cover (mp3, wav, flac, m4a, ogg, aac; max 20MB)
 listenhub music cover --audio ./song.mp3
 
-# Local image for reference (jpg, png, webp, gif; max 10MB)
+# OAuth: local image reference (jpg, png, webp, gif; max 10MB)
 listenhub image create --prompt "inspired by this" --reference ./photo.jpg
 
-# Local video for reference (mp4, mov; max 50MB)
-listenhub video create --prompt "same style" --reference-video ./clip.mp4 --input-video-duration 5
+# OpenAPI: local image reference (base64 encoded)
+listenhub openapi image create --prompt "in this style" --reference ./sketch.png --provider google
 
-# URLs are passed through directly
-listenhub music cover --audio https://example.com/song.mp3
+# URLs are passed through directly in both modes
+listenhub openapi video create --prompt "same style" --reference-video https://example.com/clip.mp4 --input-video-duration 5
 ```
-
-## Authentication
-
-ListenHub CLI uses OAuth. Run `listenhub auth login` to open a browser window for authorization. Tokens are stored at `~/.config/listenhub/credentials.json` (or `$XDG_CONFIG_HOME/listenhub/`).
-
-Tokens auto-refresh when nearing expiry. Run `listenhub auth status` to check.
 
 ## Examples
 
-### Music generation
+### OpenAPI: Podcast workflow (text → audio)
 
 ```bash
-# Generate with style and title
+# Step 1: Generate text content
+listenhub openapi podcast text-content \
+  --source-url https://example.com/article \
+  --speaker-id voice-clone-xxx \
+  --no-wait -j
+# Returns: {"episodeId": "abc123"}
+
+# Step 2: Check status
+listenhub openapi podcast get abc123 -j
+
+# Step 3: Generate audio from text
+listenhub openapi podcast generate-audio abc123
+
+# Step 4: Stream the script
+listenhub openapi podcast text-stream abc123 --event script
+```
+
+### OpenAPI: Video generation
+
+```bash
+# Text-to-video
+listenhub openapi video create --prompt "A cat playing piano" --no-wait -j
+
+# With first frame
+listenhub openapi video create --prompt "Camera zooms out" \
+  --first-frame https://example.com/frame.png
+
+# Estimate credits before creating
+listenhub openapi video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10
+```
+
+### OAuth: Music generation
+
+```bash
+# Generate with style
 listenhub music generate --prompt "Upbeat electronic dance" --style "EDM" --title "Night Drive"
 
 # Instrumental only
@@ -144,57 +296,18 @@ listenhub music generate --prompt "Peaceful piano melody" --instrumental
 
 # Cover from local file
 listenhub music cover --audio ./original.mp3 --title "My Remix"
-
-# Get task ID without waiting
-ID=$(listenhub music generate --prompt "test" --no-wait --json | jq -r '.taskId')
-listenhub music get "$ID" --json
-```
-
-### Podcast with reference material
-
-```bash
-listenhub podcast create \
-  --query "Climate change solutions" \
-  --mode deep \
-  --source-url https://example.com/article \
-  --lang en
-```
-
-### Image with local reference
-
-```bash
-listenhub image create \
-  --prompt "A landscape painting in this style" \
-  --reference ./sketch.jpg \
-  --reference ./palette.png \
-  --aspect-ratio 16:9 --size 4K
-```
-
-### Video generation
-
-```bash
-# Text-to-video
-listenhub video create --prompt "A cat playing piano in a jazz bar"
-
-# Image-to-video (first frame)
-listenhub video create --prompt "Camera slowly zooms out" --first-frame ./scene.png
-
-# With reference video
-listenhub video create --prompt "Same style dancing" \
-  --reference-video ./clip.mp4 --input-video-duration 8
-
-# Estimate credits
-listenhub video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10
 ```
 
 ### JSON output for scripting
 
 ```bash
-# Get episode ID without waiting
-ID=$(listenhub podcast create --query "test" --no-wait --json | jq -r '.episodeId')
+# Get ID without waiting, then poll
+ID=$(listenhub openapi flow-speech create \
+  --source-text "Some article content" \
+  --speaker-id voice-xxx \
+  --no-wait -j | jq -r '.episodeId')
 
-# Poll status later
-listenhub creation get "$ID" --json
+listenhub openapi flow-speech get "$ID" -j
 ```
 
 ## Development
@@ -205,7 +318,8 @@ cd listenhub-cli
 pnpm install
 pnpm run dev    # TypeScript watch mode
 pnpm run build  # Build for distribution
-pnpm test       # Lint with xo
+pnpm test       # Run tests
+pnpm run lint   # Lint
 ```
 
 ## License
