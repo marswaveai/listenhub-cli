@@ -27,6 +27,7 @@ export type VideoCreateOptions = {
 	referenceAudio: string[];
 	inputVideoDuration?: number;
 	generateAudio: boolean;
+	audioSetting?: string;
 	seed?: number;
 	wait: boolean;
 	timeout: number;
@@ -54,20 +55,12 @@ const allowedVideoAudioExtensions = new Set(['.mp3', '.wav']);
 const allowedVideoExtensions = new Set(['.mp4', '.mov']);
 
 function validateCreateOptions(options: VideoCreateOptions): void {
-	if (options.duration !== undefined && (options.duration < 4 || options.duration > 15)) {
-		throw new Error('Duration must be between 4 and 15 seconds');
+	if (options.duration !== undefined && (options.duration < 3 || options.duration > 15)) {
+		throw new Error('Duration must be between 3 and 15 seconds');
 	}
 
 	if (options.seed !== undefined && (options.seed < -1 || options.seed > 4_294_967_295)) {
 		throw new Error('Seed must be between -1 and 4294967295');
-	}
-
-	if (
-		options.resolution === '1080p' &&
-		options.model &&
-		options.model !== 'doubao-seedance-2-pro'
-	) {
-		throw new Error('1080p resolution requires --model doubao-seedance-2-pro');
 	}
 
 	if (options.lastFrame && !options.firstFrame) {
@@ -212,6 +205,7 @@ export async function createVideo(
 		...(options.inputVideoDuration !== undefined && {
 			inputVideoDuration: options.inputVideoDuration,
 		}),
+		...(options.audioSetting && {audioSetting: options.audioSetting as 'auto' | 'origin'}),
 	};
 
 	const {taskId} = await client.createVideoGeneration(params);
