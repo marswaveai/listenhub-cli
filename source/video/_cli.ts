@@ -22,7 +22,11 @@ export function register(program: Command) {
 		.command('create')
 		.description('Create a video generation task')
 		.requiredOption('--prompt <text>', 'Video description')
-		.option('--model <model>', 'Model: happyhorse, doubao-seedance-2-pro, doubao-seedance-2-fast', 'happyhorse')
+		.option(
+			'--model <model>',
+			'Model: happyhorse, doubao-seedance-2-pro, doubao-seedance-2-fast',
+			'happyhorse',
+		)
 		.option('--resolution <res>', 'Resolution: 480p, 720p, 1080p')
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9, 4:5, 5:4')
 		.option('--duration <seconds>', 'Video duration in seconds (3-15)', Number)
