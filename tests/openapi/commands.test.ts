@@ -151,7 +151,7 @@ describe('content extract', () => {
 
 describe('video create', () => {
 	it('builds content array from --prompt and creates task with --no-wait', async () => {
-		mockClient.createVideoGeneration.mockResolvedValue({taskId: 'vid-001'});
+		mockClient.createVideoGeneration.mockResolvedValue({taskId: '6a2016607ebd26d050c585ca'});
 		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
 		const parent = makeParent();
@@ -167,11 +167,13 @@ describe('video create', () => {
 				content: [{type: 'text', text: 'A sunset over the ocean'}],
 			}),
 		);
-		expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({taskId: 'vid-001'}, null, 2));
+		expect(consoleSpy).toHaveBeenCalledWith(
+			JSON.stringify({taskId: '6a2016607ebd26d050c585ca'}, null, 2),
+		);
 	});
 
 	it('includes first-frame in content array when provided', async () => {
-		mockClient.createVideoGeneration.mockResolvedValue({taskId: 'vid-002'});
+		mockClient.createVideoGeneration.mockResolvedValue({taskId: '6a201660b9fc373811288f09'});
 		vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
 		const parent = makeParent();
