@@ -5,6 +5,7 @@ import type {
 	OpenAPIVideoGenerationTaskStatus,
 } from '@marswave/listenhub-sdk';
 import {handleError, printDetail, printJson, printTable} from '../_shared/output.js';
+import {normalizeVideoTaskId} from '../_shared/video-task-id.js';
 import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
@@ -223,7 +224,8 @@ export function register(openapi: Command) {
 				};
 
 				const client = await getOpenAPIClient();
-				const {taskId} = await client.createVideoGeneration(params);
+				const {taskId: rawTaskId} = await client.createVideoGeneration(params);
+				const taskId = normalizeVideoTaskId(rawTaskId);
 
 				if (!options.wait) {
 					if (options.json) {
@@ -264,7 +266,7 @@ export function register(openapi: Command) {
 		.action(async (taskId: string, options: VideoGetOptions) => {
 			try {
 				const client = await getOpenAPIClient();
-				const result = await client.getVideoGenerationTask(taskId);
+				const result = await client.getVideoGenerationTask(normalizeVideoTaskId(taskId));
 
 				if (options.json) {
 					printJson(result);

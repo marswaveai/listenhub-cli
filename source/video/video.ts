@@ -13,6 +13,7 @@ import {getMp4Duration} from '../_shared/mp4-duration.js';
 import {printDetail, printJson, printTable} from '../_shared/output.js';
 import {pollVideoTaskUntilDone} from '../_shared/polling.js';
 import {resolveFileOrUrl} from '../_shared/upload.js';
+import {normalizeVideoTaskId} from '../_shared/video-task-id.js';
 
 export type VideoCreateOptions = {
 	prompt: string;
@@ -208,7 +209,8 @@ export async function createVideo(
 		...(options.audioSetting && {audioSetting: options.audioSetting as 'auto' | 'origin'}),
 	};
 
-	const {taskId} = await client.createVideoGeneration(params);
+	const {taskId: rawTaskId} = await client.createVideoGeneration(params);
+	const taskId = normalizeVideoTaskId(rawTaskId);
 
 	if (!options.wait) {
 		if (options.json) {
@@ -245,7 +247,7 @@ export async function getVideo(
 	taskId: string,
 	json: boolean,
 ): Promise<void> {
-	const task = await client.getVideoGenerationTask(taskId);
+	const task = await client.getVideoGenerationTask(normalizeVideoTaskId(taskId));
 
 	if (json) {
 		printJson(task);
