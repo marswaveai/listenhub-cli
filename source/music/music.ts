@@ -1,5 +1,9 @@
+import {readFile} from 'node:fs/promises';
+import path from 'node:path';
 import type {
 	CreateMusicExtendParams,
+	CreateMusicRegionEditParams,
+	CreateMusicTrackParams,
 	ListenHubClient,
 	MusicTaskDetail,
 	MusicTaskStatus,
@@ -49,6 +53,82 @@ export type MusicExtendOptions = {
 	json: boolean;
 };
 
+export type MusicRemixOptions = {
+	audio?: string;
+	audioUrl?: string;
+	providerSongId?: string;
+	lyrics: string;
+	prompt: string;
+	wait: boolean;
+	timeout: number;
+	json: boolean;
+};
+
+export type MusicInstrumentalOptions = {
+	prompt?: string;
+	referenceAudio?: string;
+	model?: string;
+	wait: boolean;
+	timeout: number;
+	json: boolean;
+};
+
+export type MusicSoundtrackOptions = {
+	image?: string;
+	video?: string;
+	prompt?: string;
+	model?: string;
+	wait: boolean;
+	timeout: number;
+	json: boolean;
+};
+
+export type MusicTrackOptions = {
+	audio?: string;
+	providerSongId?: string;
+	generateType: string;
+	prompt: string;
+	lyrics?: string;
+	vocalGender?: string;
+	generateStart?: number;
+	generateEnd?: number;
+	wait: boolean;
+	timeout: number;
+	json: boolean;
+};
+
+export type MusicRegionEditOptions = {
+	audio?: string;
+	providerSongId?: string;
+	lyrics: string;
+	editStart: number;
+	editEnd: number;
+	wait: boolean;
+	timeout: number;
+	json: boolean;
+};
+
+export type MusicRecognizeOptions = {
+	audio: string;
+	json: boolean;
+};
+
+export type MusicDescribeOptions = {
+	audio: string;
+	json: boolean;
+};
+
+export type MusicStemOptions = {
+	audio: string;
+	model?: string;
+	json: boolean;
+};
+
+export type MusicVocalCloneOptions = {
+	audio: string;
+	json: boolean;
+};
+
 export type MusicListOptions = {
 	page: number;
 	pageSize: number;
@@ -57,6 +137,77 @@ export type MusicListOptions = {
 };
 
 // --- Helpers ---
+
+const musicMaxBytes = 10 * 1024 * 1024;
+const audioExtensions = new Set(['.mp3', '.m4a', '.wav']);
+const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const videoExtensions = new Set(['.mp4', '.mov', '.avi', '.mkv', '.webm']);
+
+type MusicFileKind = 'audio' | 'image' | 'video';
+
+const allowedMusicExtensions: Record<MusicFileKind, Set<string>> = {
+	audio: audioExtensions,
+	image: imageExtensions,
+	video: videoExtensions,
+};
+
+/**
+ * Read a local file into a Blob for multipart upload, validating extension and size.
+ * Returns the Blob plus the original basename so the SDK can preserve the filename.
+ */
+async function readFileAsBlob(
+	input: string,
+	kind: MusicFileKind,
+	options: {audioWav?: boolean} = {},
+): Promise<{blob: Blob; filename: string}> {
+	const trimmed = input.trim();
+	if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+		throw new Error(`Expected a local ${kind} file, got a URL: ${trimmed}`);
+	}
+
+	const filePath = path.resolve(trimmed);
+	const ext = path.extname(filePath).toLowerCase();
+
+	let allowed = allowedMusicExtensions[kind];
+	if (kind === 'audio' && !options.audioWav) {
+		allowed = new Set(['.mp3', '.m4a']);
+	}
+
+	if (!allowed.has(ext)) {
+		const expected = [...allowed].join(', ');
+		throw new Error(`Unsupported ${kind} format: ${ext} (expected: ${expected})`);
+	}
+
+	let buffer: Buffer;
+	try {
+		buffer = await readFile(filePath);
+	} catch {
+		throw new Error(`File not found: ${trimmed}`);
+	}
+
+	if (buffer.length > musicMaxBytes) {
+		const sizeMb = (buffer.length / (1024 * 1024)).toFixed(1);
+		throw new Error(`File too large: ${sizeMb} MB (max 10 MB)`);
+	}
+
+	return {blob: new Blob([new Uint8Array(buffer)]), filename: path.basename(filePath)};
+}
+
+function emitTaskResult(task: MusicTaskDetail, json: boolean): void {
+	if (json) {
+		printJson(task);
+	} else {
+		printMusicDetail(task);
+	}
+}
+
+function emitSubmitted(result: {taskId: string}, json: boolean): void {
+	if (json) {
+		printJson(result);
+	} else {
+		console.log(`✓ Music task submitted: ${result.taskId}`);
+	}
+}
 
 function formatDuration(seconds: number): string {
 	const m = Math.floor(seconds / 60);
@@ -283,4 +434,318 @@ export async function getTask(
 	}
 
 	printMusicDetail(task);
+}
+
+export async function createRemix(
+	client: ListenHubClient,
+	options: MusicRemixOptions,
+): Promise<void> {
+	const sources = [options.audio, options.audioUrl, options.providerSongId].filter(Boolean);
+	if (sources.length !== 1) {
+		throw new Error('Provide exactly one of: <audio file>, --audio-url, --provider-song-id');
+	}
+
+	const parameters: Parameters<ListenHubClient['createMusicRemix']>[0] = {
+		lyrics: options.lyrics,
+		prompt: options.prompt,
+	};
+
+	if (options.audio) {
+		const {blob, filename} = await readFileAsBlob(options.audio, 'audio');
+		parameters.audio = blob;
+		parameters.audioFilename = filename;
+	} else if (options.audioUrl) {
+		parameters.audioUrl = await resolveFileOrUrl(client, options.audioUrl, {accept: 'audio'});
+	} else if (options.providerSongId) {
+		parameters.providerSongId = options.providerSongId;
+	}
+
+	const result = await client.createMusicRemix(parameters);
+
+	if (!options.wait) {
+		emitSubmitted(result, options.json);
+		return;
+	}
+
+	const task = await pollMusicTaskUntilDone(client, result.taskId, {
+		timeout: options.timeout,
+		json: options.json,
+	});
+	emitTaskResult(task, options.json);
+}
+
+export async function createInstrumental(
+	client: ListenHubClient,
+	options: MusicInstrumentalOptions,
+): Promise<void> {
+	const hasPrompt = Boolean(options.prompt);
+	const hasReference = Boolean(options.referenceAudio);
+	if (hasPrompt === hasReference) {
+		throw new Error('Provide exactly one of: --prompt, --reference-audio <file>');
+	}
+
+	const parameters: Parameters<ListenHubClient['createMusicInstrumental']>[0] = {};
+
+	if (options.prompt) {
+		parameters.prompt = options.prompt;
+	} else if (options.referenceAudio) {
+		const {blob, filename} = await readFileAsBlob(options.referenceAudio, 'audio');
+		parameters.referenceAudio = blob;
+		parameters.referenceAudioFilename = filename;
+	}
+
+	if (options.model) {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- CLI string validated by Commander choices
+		parameters.model = options.model as NonNullable<typeof parameters.model>;
+	}
+
+	const result = await client.createMusicInstrumental(parameters);
+
+	if (!options.wait) {
+		emitSubmitted(result, options.json);
+		return;
+	}
+
+	const task = await pollMusicTaskUntilDone(client, result.taskId, {
+		timeout: options.timeout,
+		json: options.json,
+	});
+	emitTaskResult(task, options.json);
+}
+
+export async function createSoundtrack(
+	client: ListenHubClient,
+	options: MusicSoundtrackOptions,
+): Promise<void> {
+	const hasImage = Boolean(options.image);
+	const hasVideo = Boolean(options.video);
+	if (hasImage === hasVideo) {
+		throw new Error('Provide exactly one of: --image <file>, --video <file>');
+	}
+
+	const parameters: Parameters<ListenHubClient['createMusicSoundtrack']>[0] = {};
+
+	if (options.image) {
+		const {blob, filename} = await readFileAsBlob(options.image, 'image');
+		parameters.image = blob;
+		parameters.imageFilename = filename;
+	} else if (options.video) {
+		const {blob, filename} = await readFileAsBlob(options.video, 'video');
+		parameters.video = blob;
+		parameters.videoFilename = filename;
+	}
+
+	if (options.prompt) {
+		parameters.prompt = options.prompt;
+	}
+
+	if (options.model) {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- CLI string validated by Commander choices
+		parameters.model = options.model as NonNullable<typeof parameters.model>;
+	}
+
+	const result = await client.createMusicSoundtrack(parameters);
+
+	if (!options.wait) {
+		emitSubmitted(result, options.json);
+		return;
+	}
+
+	const task = await pollMusicTaskUntilDone(client, result.taskId, {
+		timeout: options.timeout,
+		json: options.json,
+	});
+	emitTaskResult(task, options.json);
+}
+
+export async function createTrack(
+	client: ListenHubClient,
+	options: MusicTrackOptions,
+): Promise<void> {
+	const hasAudio = Boolean(options.audio);
+	const hasProviderSong = Boolean(options.providerSongId);
+	if (hasAudio === hasProviderSong) {
+		throw new Error('Provide exactly one of: --audio <file>, --provider-song-id');
+	}
+
+	if (options.generateType === 'Vocals' && !options.lyrics) {
+		throw new Error('--lyrics is required when --generate-type is Vocals');
+	}
+
+	const parameters: CreateMusicTrackParams = {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- CLI string validated by Commander choices
+		generateType: options.generateType as CreateMusicTrackParams['generateType'],
+		prompt: options.prompt,
+	};
+
+	if (options.audio) {
+		const {blob, filename} = await readFileAsBlob(options.audio, 'audio', {audioWav: true});
+		parameters.audio = blob;
+		parameters.audioFilename = filename;
+	} else if (options.providerSongId) {
+		parameters.providerSongId = options.providerSongId;
+	}
+
+	if (options.lyrics) {
+		parameters.lyrics = options.lyrics;
+	}
+
+	if (options.vocalGender) {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- CLI string validated by Commander choices
+		parameters.vocalGender = options.vocalGender as CreateMusicTrackParams['vocalGender'];
+	}
+
+	if (options.generateStart !== undefined) {
+		parameters.generateStart = options.generateStart;
+	}
+
+	if (options.generateEnd !== undefined) {
+		parameters.generateEnd = options.generateEnd;
+	}
+
+	const result = await client.createMusicTrack(parameters);
+
+	if (!options.wait) {
+		emitSubmitted(result, options.json);
+		return;
+	}
+
+	const task = await pollMusicTaskUntilDone(client, result.taskId, {
+		timeout: options.timeout,
+		json: options.json,
+	});
+	emitTaskResult(task, options.json);
+}
+
+export async function createRegionEdit(
+	client: ListenHubClient,
+	options: MusicRegionEditOptions,
+): Promise<void> {
+	const hasAudio = Boolean(options.audio);
+	const hasProviderSong = Boolean(options.providerSongId);
+	if (hasAudio === hasProviderSong) {
+		throw new Error('Provide exactly one of: --audio <file>, --provider-song-id');
+	}
+
+	if (options.editStart < 12_000) {
+		throw new Error('--edit-start must be >= 12000 (ms)');
+	}
+
+	if (options.editEnd - options.editStart < 3000) {
+		throw new Error('--edit-end - --edit-start must be >= 3000 (ms)');
+	}
+
+	const parameters: CreateMusicRegionEditParams = {
+		lyrics: options.lyrics,
+		editStart: options.editStart,
+		editEnd: options.editEnd,
+	};
+
+	if (options.audio) {
+		const {blob, filename} = await readFileAsBlob(options.audio, 'audio', {audioWav: true});
+		parameters.audio = blob;
+		parameters.audioFilename = filename;
+	} else if (options.providerSongId) {
+		parameters.providerSongId = options.providerSongId;
+	}
+
+	const result = await client.createMusicRegionEdit(parameters);
+
+	if (!options.wait) {
+		emitSubmitted(result, options.json);
+		return;
+	}
+
+	const task = await pollMusicTaskUntilDone(client, result.taskId, {
+		timeout: options.timeout,
+		json: options.json,
+	});
+	emitTaskResult(task, options.json);
+}
+
+export async function recognize(
+	client: ListenHubClient,
+	options: MusicRecognizeOptions,
+): Promise<void> {
+	const {blob, filename} = await readFileAsBlob(options.audio, 'audio');
+	const result = await client.recognizeMusic({audio: blob, audioFilename: filename});
+
+	if (options.json) {
+		printJson(result);
+		return;
+	}
+
+	printDetail('Music recognition', [
+		['ID:', result.id],
+		['Duration:', formatDuration(result.result.duration)],
+		['Sections:', result.result.lyricsSections.length],
+		['Credit cost:', result.creditCost],
+	]);
+}
+
+export async function describe(
+	client: ListenHubClient,
+	options: MusicDescribeOptions,
+): Promise<void> {
+	const {blob, filename} = await readFileAsBlob(options.audio, 'audio');
+	const result = await client.describeMusic({audio: blob, audioFilename: filename});
+
+	if (options.json) {
+		printJson(result);
+		return;
+	}
+
+	printDetail('Music description', [
+		['ID:', result.id],
+		['Description:', result.result.description],
+		['Tags:', result.result.tags.join(', ') || '—'],
+		['Genres:', result.result.genres.join(', ') || '—'],
+		['Instruments:', result.result.instruments.join(', ') || '—'],
+		['Credit cost:', result.creditCost],
+	]);
+}
+
+export async function stem(client: ListenHubClient, options: MusicStemOptions): Promise<void> {
+	const {blob, filename} = await readFileAsBlob(options.audio, 'audio');
+	const result = await client.stemMusic({
+		audio: blob,
+		audioFilename: filename,
+		...(options.model && {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- CLI string validated by Commander choices
+			model: options.model as 'audio-separation-1' | 'audio-separation-2',
+		}),
+	});
+
+	if (options.json) {
+		printJson(result);
+		return;
+	}
+
+	printDetail('Music stems', [
+		['ID:', result.id],
+		['Stems (zip):', result.result.zipUrl],
+		['MIDI (zip):', result.result.midiZipUrl ?? '—'],
+		['Expires:', formatDateTime(result.result.expiresAt)],
+		['Credit cost:', result.creditCost],
+	]);
+}
+
+export async function vocalClone(
+	client: ListenHubClient,
+	options: MusicVocalCloneOptions,
+): Promise<void> {
+	const {blob, filename} = await readFileAsBlob(options.audio, 'audio');
+	const result = await client.cloneVocal({audio: blob, audioFilename: filename});
+
+	if (options.json) {
+		printJson(result);
+		return;
+	}
+
+	printDetail('Vocal clone', [
+		['ID:', result.id],
+		['Vocal ID:', result.vocalId],
+		['Filename:', result.filename],
+		['Credit cost:', result.creditCost],
+	]);
 }
