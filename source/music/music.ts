@@ -2,7 +2,6 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import type {
 	CreateMusicExtendParams,
-	CreateMusicRegionEditParams,
 	CreateMusicTrackParams,
 	ListenHubClient,
 	MusicTaskDetail,
@@ -97,17 +96,6 @@ export type MusicTrackOptions = {
 	json: boolean;
 };
 
-export type MusicRegionEditOptions = {
-	audio?: string;
-	providerSongId?: string;
-	lyrics: string;
-	editStart: number;
-	editEnd: number;
-	wait: boolean;
-	timeout: number;
-	json: boolean;
-};
-
 export type MusicRecognizeOptions = {
 	audio: string;
 	json: boolean;
@@ -121,11 +109,6 @@ export type MusicDescribeOptions = {
 export type MusicStemOptions = {
 	audio: string;
 	model?: string;
-	json: boolean;
-};
-
-export type MusicVocalCloneOptions = {
-	audio: string;
 	json: boolean;
 };
 
@@ -617,52 +600,6 @@ export async function createTrack(
 	emitTaskResult(task, options.json);
 }
 
-export async function createRegionEdit(
-	client: ListenHubClient,
-	options: MusicRegionEditOptions,
-): Promise<void> {
-	const hasAudio = Boolean(options.audio);
-	const hasProviderSong = Boolean(options.providerSongId);
-	if (hasAudio === hasProviderSong) {
-		throw new Error('Provide exactly one of: --audio <file>, --provider-song-id');
-	}
-
-	if (options.editStart < 12_000) {
-		throw new Error('--edit-start must be >= 12000 (ms)');
-	}
-
-	if (options.editEnd - options.editStart < 3000) {
-		throw new Error('--edit-end - --edit-start must be >= 3000 (ms)');
-	}
-
-	const parameters: CreateMusicRegionEditParams = {
-		lyrics: options.lyrics,
-		editStart: options.editStart,
-		editEnd: options.editEnd,
-	};
-
-	if (options.audio) {
-		const {blob, filename} = await readFileAsBlob(options.audio, 'audio', {audioWav: true});
-		parameters.audio = blob;
-		parameters.audioFilename = filename;
-	} else if (options.providerSongId) {
-		parameters.providerSongId = options.providerSongId;
-	}
-
-	const result = await client.createMusicRegionEdit(parameters);
-
-	if (!options.wait) {
-		emitSubmitted(result, options.json);
-		return;
-	}
-
-	const task = await pollMusicTaskUntilDone(client, result.taskId, {
-		timeout: options.timeout,
-		json: options.json,
-	});
-	emitTaskResult(task, options.json);
-}
-
 export async function recognize(
 	client: ListenHubClient,
 	options: MusicRecognizeOptions,
@@ -726,26 +663,6 @@ export async function stem(client: ListenHubClient, options: MusicStemOptions): 
 		['Stems (zip):', result.result.zipUrl],
 		['MIDI (zip):', result.result.midiZipUrl ?? '—'],
 		['Expires:', formatDateTime(result.result.expiresAt)],
-		['Credit cost:', result.creditCost],
-	]);
-}
-
-export async function vocalClone(
-	client: ListenHubClient,
-	options: MusicVocalCloneOptions,
-): Promise<void> {
-	const {blob, filename} = await readFileAsBlob(options.audio, 'audio');
-	const result = await client.cloneVocal({audio: blob, audioFilename: filename});
-
-	if (options.json) {
-		printJson(result);
-		return;
-	}
-
-	printDetail('Vocal clone', [
-		['ID:', result.id],
-		['Vocal ID:', result.vocalId],
-		['Filename:', result.filename],
 		['Credit cost:', result.creditCost],
 	]);
 }

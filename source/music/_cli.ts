@@ -9,17 +9,14 @@ import {
 	type MusicInstrumentalOptions,
 	type MusicListOptions,
 	type MusicRecognizeOptions,
-	type MusicRegionEditOptions,
 	type MusicRemixOptions,
 	type MusicSoundtrackOptions,
 	type MusicStemOptions,
 	type MusicTrackOptions,
-	type MusicVocalCloneOptions,
 	createCover,
 	createExtend,
 	createGenerate,
 	createInstrumental,
-	createRegionEdit,
 	createRemix,
 	createSoundtrack,
 	createTrack,
@@ -28,7 +25,6 @@ import {
 	listTasks,
 	recognize,
 	stem,
-	vocalClone,
 } from './music.js';
 
 export function register(program: Command) {
@@ -213,26 +209,6 @@ export function register(program: Command) {
 		});
 
 	cmd
-		.command('region-edit')
-		.description('Rewrite a region of an existing song (Mureka)')
-		.argument('[audio]', 'Reference audio file (mp3/m4a/wav, max 10MB)')
-		.option('--provider-song-id <id>', 'Mureka song id instead of a file')
-		.requiredOption('--lyrics <text>', 'Lyrics for the edited region')
-		.requiredOption('--edit-start <ms>', 'Edit window start in ms (>=12000)', Number)
-		.requiredOption('--edit-end <ms>', 'Edit window end in ms (end - start >= 3000)', Number)
-		.option('--no-wait', 'Return immediately without polling')
-		.option('--timeout <seconds>', 'Polling timeout', Number, 600)
-		.option('-j, --json', 'Output JSON', false)
-		.action(async (audio: string | undefined, options: MusicRegionEditOptions) => {
-			try {
-				const client = await getClient();
-				await createRegionEdit(client, {...options, audio});
-			} catch (error) {
-				handleError(error, options.json);
-			}
-		});
-
-	cmd
 		.command('recognize')
 		.description('Recognize lyrics (with timestamps) from audio (Mureka)')
 		.requiredOption('--audio <path>', 'Audio file (mp3/m4a, max 10MB)')
@@ -275,20 +251,6 @@ export function register(program: Command) {
 			try {
 				const client = await getClient();
 				await stem(client, options);
-			} catch (error) {
-				handleError(error, options.json);
-			}
-		});
-
-	cmd
-		.command('vocal-clone')
-		.description('Clone a voice from an audio sample into a reusable Vocal ID (Mureka)')
-		.requiredOption('--audio <path>', 'Audio file (mp3/m4a, max 10MB)')
-		.option('-j, --json', 'Output JSON', false)
-		.action(async (options: MusicVocalCloneOptions) => {
-			try {
-				const client = await getClient();
-				await vocalClone(client, options);
 			} catch (error) {
 				handleError(error, options.json);
 			}

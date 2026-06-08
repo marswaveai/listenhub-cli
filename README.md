@@ -90,11 +90,9 @@ listenhub openapi subscription -j
 | `listenhub music instrumental` | Generate a standalone instrumental                     |
 | `listenhub music soundtrack`   | Generate music from an image or video                  |
 | `listenhub music track`        | Generate a single instrument/vocal track               |
-| `listenhub music region-edit`  | Rewrite a region of an existing song                   |
 | `listenhub music recognize`    | Recognize lyrics (with timestamps) from audio          |
 | `listenhub music describe`     | Analyze audio (description, tags, genres, instruments) |
 | `listenhub music stem`         | Separate audio into stems (download URLs)              |
-| `listenhub music vocal-clone`  | Clone a voice into a reusable Vocal ID                 |
 | `listenhub music list`         | List music tasks                                       |
 | `listenhub music get <id>`     | Get music task details                                 |
 
@@ -321,15 +319,10 @@ listenhub music track ./song.mp3 --generate-type Drums --prompt "Punchy breakbea
 listenhub music track --provider-song-id abc123 --generate-type Vocals \
   --prompt "Soulful chorus" --lyrics "Hold on..." --vocal-gender female
 
-# Rewrite a region of an existing song (ms; edit-start >= 12000, end - start >= 3000)
-listenhub music region-edit ./song.mp3 --lyrics "Brand new bridge" \
-  --edit-start 15000 --edit-end 22000
-
 # Sync analysis commands (print immediately)
 listenhub music recognize --audio ./song.mp3
 listenhub music describe --audio ./song.mp3
 listenhub music stem --audio ./song.mp3 --model audio-separation-2
-listenhub music vocal-clone --audio ./voice.mp3
 ```
 
 ### JSON output for scripting

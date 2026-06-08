@@ -90,11 +90,9 @@ listenhub openapi subscription -j
 | `listenhub music instrumental` | 生成纯器乐曲                       |
 | `listenhub music soundtrack`   | 根据图片或视频生成配乐             |
 | `listenhub music track`        | 生成单条乐器/人声轨道              |
-| `listenhub music region-edit`  | 改写歌曲中的某一段落               |
 | `listenhub music recognize`    | 从音频识别歌词（含时间戳）         |
 | `listenhub music describe`     | 分析音频（描述、标签、流派、乐器） |
 | `listenhub music stem`         | 分离音轨并返回下载链接             |
-| `listenhub music vocal-clone`  | 从音频克隆音色生成可复用 Vocal ID  |
 | `listenhub music list`         | 列出音乐任务                       |
 | `listenhub music get <id>`     | 查看音乐任务详情                   |
 
@@ -321,15 +319,10 @@ listenhub music track ./song.mp3 --generate-type Drums --prompt "有力的碎拍
 listenhub music track --provider-song-id abc123 --generate-type Vocals \
   --prompt "灵魂乐副歌" --lyrics "坚持住……" --vocal-gender female
 
-# 改写歌曲中的某一段落（毫秒；edit-start >= 12000，end - start >= 3000）
-listenhub music region-edit ./song.mp3 --lyrics "全新的过渡段" \
-  --edit-start 15000 --edit-end 22000
-
 # 同步分析命令（立即返回结果）
 listenhub music recognize --audio ./song.mp3
 listenhub music describe --audio ./song.mp3
 listenhub music stem --audio ./song.mp3 --model audio-separation-2
-listenhub music vocal-clone --audio ./voice.mp3
 ```
 
 ### 脚本中使用 JSON 输出
