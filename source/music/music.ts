@@ -138,7 +138,7 @@ const allowedMusicExtensions: Record<MusicFileKind, Set<string>> = {
  * Read a local file into a Blob for multipart upload, validating extension and size.
  * Returns the Blob plus the original basename so the SDK can preserve the filename.
  */
-async function readFileAsBlob(
+export async function readFileAsBlob(
 	input: string,
 	kind: MusicFileKind,
 	options: {audioWav?: boolean} = {},
@@ -192,10 +192,20 @@ function emitSubmitted(result: {taskId: string}, json: boolean): void {
 	}
 }
 
-function formatDuration(seconds: number): string {
+export function formatDuration(seconds: number): string {
 	const m = Math.floor(seconds / 60);
 	const s = Math.floor(seconds % 60);
 	return `${String(m)}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Normalize a provider duration to seconds. Mureka reports track/clip duration in
+ * milliseconds, while Suno (and the documented API contract) use seconds. No generated
+ * music track is an hour long, so any value >= 3600 must be milliseconds. This also
+ * self-corrects if the server is later changed to normalize Mureka durations to seconds.
+ */
+export function toSeconds(duration: number): number {
+	return duration >= 3600 ? duration / 1000 : duration;
 }
 
 function formatDate(timestamp: number): string {
@@ -207,7 +217,7 @@ function formatDateTime(timestamp: number): string {
 	return `${d.toLocaleDateString('sv-SE')} ${d.toLocaleTimeString('en-GB', {hour12: false})}`;
 }
 
-function printMusicDetail(task: MusicTaskDetail): void {
+export function printMusicDetail(task: MusicTaskDetail): void {
 	const rows: Array<[string, string | number | undefined]> = [
 		['Task ID:', task.id],
 		['Type:', task.taskType.toLowerCase()],
@@ -226,7 +236,7 @@ function printMusicDetail(task: MusicTaskDetail): void {
 		for (const [i, track] of task.tracks.entries()) {
 			rows.push([
 				`Track ${String(i + 1)}:`,
-				`${track.audioUrl} (${formatDuration(track.duration)})`,
+				`${track.audioUrl} (${formatDuration(toSeconds(track.duration))})`,
 			]);
 		}
 	}
@@ -614,7 +624,7 @@ export async function recognize(
 
 	printDetail('Music recognition', [
 		['ID:', result.id],
-		['Duration:', formatDuration(result.result.duration)],
+		['Duration:', formatDuration(toSeconds(result.result.duration))],
 		['Sections:', result.result.lyricsSections.length],
 		['Credit cost:', result.creditCost],
 	]);
