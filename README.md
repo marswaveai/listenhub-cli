@@ -81,12 +81,20 @@ listenhub openapi subscription -j
 
 ### Music
 
-| Command                    | Description                         |
-| -------------------------- | ----------------------------------- |
-| `listenhub music generate` | Generate music from a text prompt   |
-| `listenhub music cover`    | Create a cover from reference audio |
-| `listenhub music list`     | List music tasks                    |
-| `listenhub music get <id>` | Get music task details              |
+| Command                        | Description                                            |
+| ------------------------------ | ------------------------------------------------------ |
+| `listenhub music generate`     | Generate music from a text prompt                      |
+| `listenhub music cover`        | Create a cover from reference audio                    |
+| `listenhub music extend`       | Extend music from reference audio                      |
+| `listenhub music remix`        | Remix an existing song with new lyrics                 |
+| `listenhub music instrumental` | Generate a standalone instrumental                     |
+| `listenhub music soundtrack`   | Generate music from an image or video                  |
+| `listenhub music track`        | Generate a single instrument/vocal track               |
+| `listenhub music recognize`    | Recognize lyrics (with timestamps) from audio          |
+| `listenhub music describe`     | Analyze audio (description, tags, genres, instruments) |
+| `listenhub music stem`         | Separate audio into stems (download URLs)              |
+| `listenhub music list`         | List music tasks                                       |
+| `listenhub music get <id>`     | Get music task details                                 |
 
 ### Content Creation
 
@@ -296,6 +304,25 @@ listenhub music generate --prompt "Peaceful piano melody" --instrumental
 
 # Cover from local file
 listenhub music cover --audio ./original.mp3 --title "My Remix"
+
+# Remix an existing song with new lyrics (file, --audio-url, or --provider-song-id)
+listenhub music remix ./original.mp3 --lyrics "New verse..." --prompt "Lo-fi hip hop"
+
+# Standalone instrumental (--prompt XOR --reference-audio)
+listenhub music instrumental --prompt "Cinematic orchestral build-up" --model mureka-8
+
+# Soundtrack from an image or video (--image XOR --video)
+listenhub music soundtrack --image ./cover.png --prompt "Dreamy synthwave"
+
+# Single instrument/vocal track (--audio XOR --provider-song-id)
+listenhub music track ./song.mp3 --generate-type Drums --prompt "Punchy breakbeat"
+listenhub music track --provider-song-id abc123 --generate-type Vocals \
+  --prompt "Soulful chorus" --lyrics "Hold on..." --vocal-gender female
+
+# Sync analysis commands (print immediately)
+listenhub music recognize --audio ./song.mp3
+listenhub music describe --audio ./song.mp3
+listenhub music stem --audio ./song.mp3 --model audio-separation-2
 ```
 
 ### JSON output for scripting

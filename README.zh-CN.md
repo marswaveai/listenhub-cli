@@ -81,12 +81,20 @@ listenhub openapi subscription -j
 
 ### 音乐
 
-| 命令                       | 说明                 |
-| -------------------------- | -------------------- |
-| `listenhub music generate` | 根据文字描述生成音乐 |
-| `listenhub music cover`    | 用参考音频创建翻唱   |
-| `listenhub music list`     | 列出音乐任务         |
-| `listenhub music get <id>` | 查看音乐任务详情     |
+| 命令                           | 说明                               |
+| ------------------------------ | ---------------------------------- |
+| `listenhub music generate`     | 根据文字描述生成音乐               |
+| `listenhub music cover`        | 用参考音频创建翻唱                 |
+| `listenhub music extend`       | 基于参考音频续写音乐               |
+| `listenhub music remix`        | 用新歌词重制已有歌曲               |
+| `listenhub music instrumental` | 生成纯器乐曲                       |
+| `listenhub music soundtrack`   | 根据图片或视频生成配乐             |
+| `listenhub music track`        | 生成单条乐器/人声轨道              |
+| `listenhub music recognize`    | 从音频识别歌词（含时间戳）         |
+| `listenhub music describe`     | 分析音频（描述、标签、流派、乐器） |
+| `listenhub music stem`         | 分离音轨并返回下载链接             |
+| `listenhub music list`         | 列出音乐任务                       |
+| `listenhub music get <id>`     | 查看音乐任务详情                   |
 
 ### 内容创作
 
@@ -296,6 +304,25 @@ listenhub music generate --prompt "宁静的钢琴旋律" --instrumental
 
 # 本地文件翻唱
 listenhub music cover --audio ./original.mp3 --title "我的混音"
+
+# 用新歌词重制已有歌曲（文件、--audio-url 或 --provider-song-id 三选一）
+listenhub music remix ./original.mp3 --lyrics "全新的主歌……" --prompt "Lo-fi 嘻哈"
+
+# 纯器乐（--prompt 与 --reference-audio 二选一）
+listenhub music instrumental --prompt "电影感弦乐渐强" --model mureka-8
+
+# 根据图片或视频生成配乐（--image 与 --video 二选一）
+listenhub music soundtrack --image ./cover.png --prompt "梦幻 synthwave"
+
+# 生成单条乐器/人声轨道（--audio 与 --provider-song-id 二选一）
+listenhub music track ./song.mp3 --generate-type Drums --prompt "有力的碎拍"
+listenhub music track --provider-song-id abc123 --generate-type Vocals \
+  --prompt "灵魂乐副歌" --lyrics "坚持住……" --vocal-gender female
+
+# 同步分析命令（立即返回结果）
+listenhub music recognize --audio ./song.mp3
+listenhub music describe --audio ./song.mp3
+listenhub music stem --audio ./song.mp3 --model audio-separation-2
 ```
 
 ### 脚本中使用 JSON 输出

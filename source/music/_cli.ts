@@ -1,16 +1,30 @@
-import type {Command} from 'commander';
+import {type Command, Option} from 'commander';
 import {getClient} from '../_shared/client.js';
 import {handleError} from '../_shared/output.js';
 import {
 	type MusicCoverOptions,
+	type MusicDescribeOptions,
 	type MusicExtendOptions,
 	type MusicGenerateOptions,
+	type MusicInstrumentalOptions,
 	type MusicListOptions,
+	type MusicRecognizeOptions,
+	type MusicRemixOptions,
+	type MusicSoundtrackOptions,
+	type MusicStemOptions,
+	type MusicTrackOptions,
 	createCover,
 	createExtend,
 	createGenerate,
+	createInstrumental,
+	createRemix,
+	createSoundtrack,
+	createTrack,
+	describe,
 	getTask,
 	listTasks,
+	recognize,
+	stem,
 } from './music.js';
 
 export function register(program: Command) {
@@ -77,6 +91,166 @@ export function register(program: Command) {
 			try {
 				const client = await getClient();
 				await createExtend(client, options);
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	cmd
+		.command('remix')
+		.description('Remix an existing song with new lyrics (Mureka)')
+		.argument('[audio]', 'Reference audio file (mp3/m4a, max 10MB)')
+		.option('--audio-url <url>', 'Reference audio URL instead of a file')
+		.option('--provider-song-id <id>', 'Mureka song id instead of a file')
+		.requiredOption('--lyrics <text>', 'Lyrics for the remixed song')
+		.requiredOption('--prompt <text>', 'Music description')
+		.option('--no-wait', 'Return immediately without polling')
+		.option('--timeout <seconds>', 'Polling timeout', Number, 600)
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (audio: string | undefined, options: MusicRemixOptions) => {
+			try {
+				const client = await getClient();
+				await createRemix(client, {...options, audio});
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	cmd
+		.command('instrumental')
+		.description('Generate a standalone instrumental (Mureka)')
+		.option('--prompt <text>', 'Music description')
+		.option('--reference-audio <path>', 'Reference audio file (mp3/m4a, max 10MB)')
+		.addOption(
+			new Option('--model <version>', 'Model version').choices([
+				'auto',
+				'mureka-7.6',
+				'mureka-8',
+				'mureka-o2',
+			]),
+		)
+		.option('--no-wait', 'Return immediately without polling')
+		.option('--timeout <seconds>', 'Polling timeout', Number, 600)
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (options: MusicInstrumentalOptions) => {
+			try {
+				const client = await getClient();
+				await createInstrumental(client, options);
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	cmd
+		.command('soundtrack')
+		.description('Generate music from an image or video (Mureka)')
+		.option('--image <path>', 'Source image (jpg/jpeg/png/webp, max 10MB)')
+		.option('--video <path>', 'Source video (mp4/mov/avi/mkv/webm, max 10MB)')
+		.option('--prompt <text>', 'Music description')
+		.addOption(
+			new Option('--model <version>', 'Model version').choices([
+				'auto',
+				'mureka-7.6',
+				'mureka-8',
+				'mureka-9',
+				'mureka-o2',
+			]),
+		)
+		.option('--no-wait', 'Return immediately without polling')
+		.option('--timeout <seconds>', 'Polling timeout', Number, 600)
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (options: MusicSoundtrackOptions) => {
+			try {
+				const client = await getClient();
+				await createSoundtrack(client, options);
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	cmd
+		.command('track')
+		.description('Generate a single instrument/vocal track (Mureka)')
+		.argument('[audio]', 'Reference audio file (mp3/m4a/wav, max 10MB)')
+		.option('--provider-song-id <id>', 'Mureka song id instead of a file')
+		.addOption(
+			new Option('--generate-type <type>', 'Track type to generate')
+				.choices([
+					'Vocals',
+					'Instrumental',
+					'Drums',
+					'Bass',
+					'Guitar',
+					'Keyboard',
+					'Percussion',
+					'Strings',
+					'Synth',
+					'FX',
+					'Brass',
+					'Woodwinds',
+				])
+				.makeOptionMandatory(),
+		)
+		.requiredOption('--prompt <text>', 'Music description')
+		.option('--lyrics <text>', 'Lyrics (required when --generate-type is Vocals)')
+		.addOption(new Option('--vocal-gender <gender>', 'Vocal gender').choices(['male', 'female']))
+		.option('--generate-start <ms>', 'Range start in milliseconds', Number)
+		.option('--generate-end <ms>', 'Range end in milliseconds', Number)
+		.option('--no-wait', 'Return immediately without polling')
+		.option('--timeout <seconds>', 'Polling timeout', Number, 600)
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (audio: string | undefined, options: MusicTrackOptions) => {
+			try {
+				const client = await getClient();
+				await createTrack(client, {...options, audio});
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	cmd
+		.command('recognize')
+		.description('Recognize lyrics (with timestamps) from audio (Mureka)')
+		.requiredOption('--audio <path>', 'Audio file (mp3/m4a, max 10MB)')
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (options: MusicRecognizeOptions) => {
+			try {
+				const client = await getClient();
+				await recognize(client, options);
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	cmd
+		.command('describe')
+		.description('Analyze audio: description, tags, genres, instruments (Mureka)')
+		.requiredOption('--audio <path>', 'Audio file (mp3/m4a, max 10MB)')
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (options: MusicDescribeOptions) => {
+			try {
+				const client = await getClient();
+				await describe(client, options);
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	cmd
+		.command('stem')
+		.description('Separate audio into stems, returns download URLs (Mureka)')
+		.requiredOption('--audio <path>', 'Audio file (mp3/m4a, max 10MB)')
+		.addOption(
+			new Option('--model <model>', 'Separation model').choices([
+				'audio-separation-1',
+				'audio-separation-2',
+			]),
+		)
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (options: MusicStemOptions) => {
+			try {
+				const client = await getClient();
+				await stem(client, options);
 			} catch (error) {
 				handleError(error, options.json);
 			}
