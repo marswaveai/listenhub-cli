@@ -1,3 +1,8 @@
+.DS_Store
 node_modules/
 dist/
 *.tsbuildinfo
+
+# Local git worktrees (e.g. .worktrees/ralph/*) — keep them out of the working
+# tree so an untracked dir doesn't dirty `git status` and block release checks.
+.worktrees/
