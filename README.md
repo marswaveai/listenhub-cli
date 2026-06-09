@@ -111,11 +111,12 @@ listenhub openapi subscription -j
 
 ### Images
 
-| Command                    | Description          |
-| -------------------------- | -------------------- |
-| `listenhub image create`   | Generate an AI image |
-| `listenhub image list`     | List AI images       |
-| `listenhub image get <id>` | Get image details    |
+| Command                          | Description                  |
+| -------------------------------- | ---------------------------- |
+| `listenhub image create`         | Generate an AI image         |
+| `listenhub image list`           | List AI images               |
+| `listenhub image get <id>`       | Get image details            |
+| `listenhub image delete <id...>` | Delete one or more AI images |
 
 ### Video Generation
 

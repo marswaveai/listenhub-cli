@@ -111,11 +111,12 @@ listenhub openapi subscription -j
 
 ### 图片
 
-| 命令                       | 说明         |
-| -------------------------- | ------------ |
-| `listenhub image create`   | AI 生图      |
-| `listenhub image list`     | 列出图片     |
-| `listenhub image get <id>` | 查看图片详情 |
+| 命令                             | 说明               |
+| -------------------------------- | ------------------ |
+| `listenhub image create`         | AI 生图            |
+| `listenhub image list`           | 列出图片           |
+| `listenhub image get <id>`       | 查看图片详情       |
+| `listenhub image delete <id...>` | 删除一个或多个图片 |
 
 ### 视频生成
 

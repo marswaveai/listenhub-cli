@@ -122,3 +122,17 @@ export async function getImage(
 		['Created:', new Date(item.createdAt).toISOString()],
 	]);
 }
+
+export async function deleteImages(
+	client: ListenHubClient,
+	ids: string[],
+	json: boolean,
+): Promise<void> {
+	await client.deleteAIImages({ids});
+
+	if (json) {
+		printJson({deleted: ids});
+	} else {
+		console.log(`✓ Deleted ${String(ids.length)} image(s)`);
+	}
+}
