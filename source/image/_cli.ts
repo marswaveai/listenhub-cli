@@ -5,6 +5,7 @@ import {
 	type ImageCreateOptions,
 	type ImageListOptions,
 	createImage,
+	deleteImages,
 	getImage,
 	listImages,
 } from './image.js';
@@ -71,6 +72,19 @@ export function register(program: Command) {
 			try {
 				const client = await getClient();
 				await getImage(client, id, options.json);
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	cmd
+		.command('delete <id...>')
+		.description('Delete one or more AI images')
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (ids: string[], options: {json: boolean}) => {
+			try {
+				const client = await getClient();
+				await deleteImages(client, ids, options.json);
 			} catch (error) {
 				handleError(error, options.json);
 			}
