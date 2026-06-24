@@ -204,12 +204,14 @@ All commands below are under `listenhub openapi`.
 
 ### Video
 
-| Command                  | Description                  |
-| ------------------------ | ---------------------------- |
-| `openapi video create`   | Create video generation task |
-| `openapi video get <id>` | Get video task details       |
-| `openapi video list`     | List video tasks             |
-| `openapi video estimate` | Estimate credit cost         |
+| Command                           | Description                                   |
+| --------------------------------- | --------------------------------------------- |
+| `openapi video create`            | Create video generation task                  |
+| `openapi video get <id>`          | Get video task details                        |
+| `openapi video list`              | List video tasks                              |
+| `openapi video estimate`          | Estimate credit cost                          |
+| `openapi video pixverse generate` | Create a PixVerse video task (atomic + agent) |
+| `openapi video pixverse estimate` | Estimate PixVerse credit cost                 |
 
 ### Content
 
@@ -292,6 +294,40 @@ listenhub openapi video create --prompt "Camera zooms out" \
 
 # Estimate credits before creating
 listenhub openapi video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10
+```
+
+### OpenAPI: PixVerse video generation
+
+PixVerse covers atomic capabilities (`text_to_video`, `image_to_video`, `transition`, `multi_transition`, `fusion`, `restyle`, `mimic`, `lip_sync`) and the marketing `agent` (`ad_master` / `promo_mix`). `--capability` is required. `--language en` (default) uses the international service; `--language zh` uses the China service. Image/video/audio assets accept an optional `:duration` suffix (`url:seconds`). For rarely-used nested fields use the `--pixverse-json` escape hatch.
+
+```bash
+# Text-to-video
+listenhub openapi video pixverse generate --capability text_to_video \
+  --prompt "A cat playing piano" --quality 720p --aspect-ratio 16:9 --duration 5 --no-wait -j
+
+# Image-to-video (assets accept url:duration)
+listenhub openapi video pixverse generate --capability image_to_video \
+  --image https://example.com/photo.jpg --prompt "Camera slowly zooms in"
+
+# Lip-sync TTS, reusing a prior succeeded PixVerse task
+listenhub openapi video pixverse generate --capability lip_sync \
+  --source-task-id 6a2016607ebd26d050c585ca \
+  --lip-sync-tts --lip-sync-speaker-id speaker-1 --lip-sync-content "Hello world"
+
+# Marketing agent (promo_mix needs >=4 product images)
+listenhub openapi video pixverse generate --capability agent --agent-type promo_mix \
+  --quality 1080p --duration 30 \
+  --image https://example.com/p1.jpg --image https://example.com/p2.jpg \
+  --image https://example.com/p3.jpg --image https://example.com/p4.jpg
+
+# Escape hatch for nested pixverse fields
+listenhub openapi video pixverse generate --capability fusion \
+  --prompt "@hero stands in @bg" \
+  --pixverse-json '{"imageReferences":[{"type":"subject","imageUrl":"https://example.com/hero.png","refName":"hero"},{"type":"background","imageUrl":"https://example.com/bg.png","refName":"bg"}]}'
+
+# Estimate credits
+listenhub openapi video pixverse estimate --capability text_to_video --quality 720p --duration 5
+listenhub openapi video pixverse estimate --capability agent --agent-type ad_master --duration 30
 ```
 
 ### OAuth: Music generation

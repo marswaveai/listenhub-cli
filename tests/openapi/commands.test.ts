@@ -24,6 +24,8 @@ const mockClient = vi.hoisted(() => ({
 	getVideoGenerationTask: vi.fn(),
 	listVideoGenerationTasks: vi.fn(),
 	estimateVideoCredits: vi.fn(),
+	createPixVerseVideoGeneration: vi.fn(),
+	estimatePixVerseVideoCredits: vi.fn(),
 	createContentExtract: vi.fn(),
 	getContentExtract: vi.fn(),
 	getSubscription: vi.fn(),
@@ -203,6 +205,261 @@ describe('video create', () => {
 						role: 'first_frame',
 					},
 				],
+			}),
+		);
+	});
+});
+
+describe('video pixverse generate', () => {
+	it('text_to_video: passes capability + prompt with --no-wait and prints response JSON', async () => {
+		const created = {taskId: '6a2016607ebd26d050c585ca', status: 'generating'};
+		mockClient.createPixVerseVideoGeneration.mockResolvedValue(created);
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'pixverse',
+				'generate',
+				'--capability',
+				'text_to_video',
+				'--prompt',
+				'A cat playing piano',
+				'--no-wait',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.createPixVerseVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({
+				capability: 'text_to_video',
+				prompt: 'A cat playing piano',
+			}),
+		);
+		expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify(created, null, 2));
+	});
+
+	it('image_to_video: parses --image url:duration into images asset array', async () => {
+		mockClient.createPixVerseVideoGeneration.mockResolvedValue({
+			taskId: '6a201660b9fc373811288f09',
+			status: 'generating',
+		});
+		vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'pixverse',
+				'generate',
+				'--capability',
+				'image_to_video',
+				'--image',
+				'https://img.example.com/a.jpg:5',
+				'--image',
+				'https://img.example.com/b.jpg',
+				'--quality',
+				'1080p',
+				'--aspect-ratio',
+				'9:16',
+				'--duration',
+				'10',
+				'--no-wait',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.createPixVerseVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({
+				capability: 'image_to_video',
+				quality: '1080p',
+				aspectRatio: '9:16',
+				duration: 10,
+				images: [
+					{url: 'https://img.example.com/a.jpg', duration: 5},
+					{url: 'https://img.example.com/b.jpg'},
+				],
+			}),
+		);
+	});
+
+	it('lip_sync: builds nested pixverse object from lip-sync flags', async () => {
+		mockClient.createPixVerseVideoGeneration.mockResolvedValue({
+			taskId: '6a201660b9fc373811288f10',
+			status: 'generating',
+		});
+		vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'pixverse',
+				'generate',
+				'--capability',
+				'lip_sync',
+				'--source-task-id',
+				'6a201660b9fc373811288f00',
+				'--lip-sync-tts',
+				'--lip-sync-speaker-id',
+				'speaker-1',
+				'--lip-sync-content',
+				'Hello world',
+				'--no-wait',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.createPixVerseVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({
+				capability: 'lip_sync',
+				sourceTaskId: '6a201660b9fc373811288f00',
+				// lip_sync TTS must populate BOTH the nested `tts` object (which the
+				// server validator gates on) and the lipSyncTts* fields (which the
+				// provider reads), so the flag-driven path passes validation.
+				pixverse: {
+					lipSyncTtsSwitch: true,
+					lipSyncTtsSpeakerId: 'speaker-1',
+					lipSyncTtsContent: 'Hello world',
+					tts: {speakerId: 'speaker-1', content: 'Hello world'},
+				},
+			}),
+		);
+	});
+
+	it('agent: merges --agent-type into a --pixverse-json escape hatch (flags win)', async () => {
+		mockClient.createPixVerseVideoGeneration.mockResolvedValue({
+			taskId: '6a201660b9fc373811288f11',
+			status: 'generating',
+		});
+		vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'pixverse',
+				'generate',
+				'--capability',
+				'agent',
+				'--agent-type',
+				'promo_mix',
+				'--quality',
+				'1080p',
+				'--duration',
+				'30',
+				'--pixverse-json',
+				'{"motionMode":"smooth"}',
+				'--no-wait',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.createPixVerseVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({
+				capability: 'agent',
+				quality: '1080p',
+				duration: 30,
+				pixverse: {motionMode: 'smooth', agentType: 'promo_mix'},
+			}),
+		);
+	});
+
+	it('rejects an invalid --capability', async () => {
+		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			['video', 'pixverse', 'generate', '--capability', 'bogus', '--no-wait', '--json'],
+			{from: 'user'},
+		);
+
+		expect(mockClient.createPixVerseVideoGeneration).not.toHaveBeenCalled();
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		errorSpy.mockRestore();
+		exitSpy.mockRestore();
+	});
+});
+
+describe('video pixverse estimate', () => {
+	it('calls estimatePixVerseVideoCredits with capability/quality/duration and prints JSON', async () => {
+		const estimate = {tokens: 1400, credits: 14};
+		mockClient.estimatePixVerseVideoCredits.mockResolvedValue(estimate);
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'pixverse',
+				'estimate',
+				'--capability',
+				'text_to_video',
+				'--quality',
+				'720p',
+				'--duration',
+				'5',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.estimatePixVerseVideoCredits).toHaveBeenCalledWith(
+			expect.objectContaining({
+				capability: 'text_to_video',
+				quality: '720p',
+				duration: 5,
+			}),
+		);
+		expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify(estimate, null, 2));
+	});
+
+	it('passes agentType under pixverse for capability=agent', async () => {
+		mockClient.estimatePixVerseVideoCredits.mockResolvedValue({tokens: 3000, credits: 30});
+		vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'pixverse',
+				'estimate',
+				'--capability',
+				'agent',
+				'--agent-type',
+				'ad_master',
+				'--duration',
+				'30',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.estimatePixVerseVideoCredits).toHaveBeenCalledWith(
+			expect.objectContaining({
+				capability: 'agent',
+				duration: 30,
+				pixverse: {agentType: 'ad_master'},
 			}),
 		);
 	});
