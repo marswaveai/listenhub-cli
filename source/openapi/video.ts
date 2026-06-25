@@ -1,6 +1,10 @@
 import type {Command} from 'commander';
 import type {
+	OpenAPICreatePixVerseVideoParams,
 	OpenAPICreateVideoGenerationParams,
+	OpenAPIEstimatePixVerseCreditsParams,
+	OpenAPIPixVerseAsset,
+	OpenAPIPixVerseOptions,
 	OpenAPIVideoGenerationTaskDetail,
 	OpenAPIVideoGenerationTaskStatus,
 } from '@marswave/listenhub-sdk';
@@ -12,6 +16,91 @@ import {pollOpenAPI} from './polling.js';
 function collect(value: string, previous: string[]): string[] {
 	return [...previous, value];
 }
+
+const pixVerseCapabilities = [
+	'text_to_video',
+	'image_to_video',
+	'transition',
+	'multi_transition',
+	'fusion',
+	'restyle',
+	'mimic',
+	'lip_sync',
+	'agent',
+] as const;
+
+const pixVerseModels = ['pixverse', 'v6', 'v5', 'v4.5'] as const;
+const pixVerseLanguages = ['zh', 'en'] as const;
+const pixVerseQualities = ['360p', '540p', '720p', '1080p'] as const;
+const pixVerseAspectRatios = ['9:16', '16:9', '1:1', '4:3', '3:4'] as const;
+const pixVerseAgentTypes = ['ad_master', 'promo_mix'] as const;
+
+/**
+ * Parse an asset spec of the form `url` or `url:duration` (duration in seconds).
+ * The URL may itself contain colons (e.g. https://...), so only a trailing
+ * `:<integer>` is treated as the duration.
+ */
+function parsePixVerseAsset(spec: string): OpenAPIPixVerseAsset {
+	const trimmed = spec.trim();
+	const match = /^(.*?):(\d+)$/.exec(trimmed);
+	const url = match?.[1];
+	const durationText = match?.[2];
+	if (url !== undefined && durationText !== undefined && /^https?:\/\//.test(url)) {
+		return {url, duration: Number(durationText)};
+	}
+
+	return {url: trimmed};
+}
+
+function ensureEnum<T extends string>(
+	value: string | undefined,
+	allowed: readonly T[],
+	flag: string,
+): T | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+
+	if (!allowed.includes(value as T)) {
+		throw new Error(`${flag} must be one of: ${allowed.join(', ')}`);
+	}
+
+	return value as T;
+}
+
+type PixVerseGenerateOptions = {
+	capability: string;
+	model?: string;
+	language?: string;
+	prompt?: string;
+	quality?: string;
+	aspectRatio?: string;
+	duration?: string;
+	sourceTaskId?: string;
+	image: string[];
+	video: string[];
+	audio: string[];
+	agentType?: string;
+	sourceVideoId?: string;
+	restyleId?: string;
+	lipSyncTts?: boolean;
+	lipSyncSpeakerId?: string;
+	lipSyncContent?: string;
+	pixverseJson?: string;
+	wait: boolean;
+	timeout: string;
+	json: boolean;
+};
+
+type PixVerseEstimateOptions = {
+	capability: string;
+	model?: string;
+	language?: string;
+	quality?: string;
+	duration?: string;
+	agentType?: string;
+	json: boolean;
+};
 
 type VideoCreateOptions = {
 	prompt: string;
@@ -357,6 +446,239 @@ export function register(openapi: Command) {
 					printJson(result);
 				} else {
 					printDetail('Credit Estimate', [
+						['Tokens', result.tokens],
+						['Credits', result.credits],
+					]);
+				}
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	registerPixVerse(video);
+}
+
+function registerPixVerse(video: Command) {
+	const pixverse = video
+		.command('pixverse')
+		.description('PixVerse video generation (Agent API: atomic capabilities + marketing agent)');
+
+	pixverse
+		.command('generate')
+		.description('Create a PixVerse video generation task')
+		.requiredOption('--capability <capability>', `Capability: ${pixVerseCapabilities.join(', ')}`)
+		.option('--model <model>', `Model: ${pixVerseModels.join(', ')} (default pixverse)`)
+		.option('--language <lang>', `Service region: ${pixVerseLanguages.join(', ')} (default en)`)
+		.option('--prompt <text>', 'Video description / prompt (max 2048 chars)')
+		.option('--quality <quality>', `Quality: ${pixVerseQualities.join(', ')} (default 720p)`)
+		.option(
+			'--aspect-ratio <ratio>',
+			`Aspect ratio: ${pixVerseAspectRatios.join(', ')} (default 16:9)`,
+		)
+		.option('--duration <seconds>', 'Video duration in seconds (1-60, default 5)')
+		.option('--source-task-id <id>', 'Reuse a prior succeeded PixVerse task (restyle / lip_sync)')
+		.option(
+			'--image <url[:duration]>',
+			'Image asset URL, optional :duration suffix (repeatable, max 10)',
+			collect,
+			[] as string[],
+		)
+		.option(
+			'--video <url[:duration]>',
+			'Video asset URL, optional :duration suffix (repeatable, max 2)',
+			collect,
+			[] as string[],
+		)
+		.option(
+			'--audio <url[:duration]>',
+			'Audio asset URL, optional :duration suffix (repeatable, max 1)',
+			collect,
+			[] as string[],
+		)
+		.option(
+			'--agent-type <type>',
+			`Agent type: ${pixVerseAgentTypes.join(', ')} (capability=agent)`,
+		)
+		.option('--source-video-id <id>', 'PixVerse source video id (restyle)')
+		.option('--restyle-id <id>', 'PixVerse restyle id (restyle)')
+		.option('--lip-sync-tts', 'Enable lip-sync TTS (capability=lip_sync)')
+		.option('--lip-sync-speaker-id <id>', 'Lip-sync TTS speaker id')
+		.option('--lip-sync-content <text>', 'Lip-sync TTS content')
+		.option(
+			'--pixverse-json <json>',
+			'Escape hatch: JSON for the nested pixverse object (merged with flag-derived fields; flags win)',
+		)
+		.option('--no-wait', 'Do not wait for task completion')
+		.option('--timeout <seconds>', 'Polling timeout in seconds', '1200')
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (options: PixVerseGenerateOptions) => {
+			try {
+				const capability = ensureEnum(options.capability, pixVerseCapabilities, '--capability')!;
+
+				if (options.image.length > 10) {
+					throw new Error('Maximum 10 images allowed');
+				}
+
+				if (options.video.length > 2) {
+					throw new Error('Maximum 2 videos allowed');
+				}
+
+				if (options.audio.length > 1) {
+					throw new Error('Maximum 1 audio allowed');
+				}
+
+				if (options.duration !== undefined) {
+					const dur = Number(options.duration);
+					if (!Number.isInteger(dur) || dur < 1 || dur > 60) {
+						throw new Error('--duration must be an integer between 1 and 60');
+					}
+				}
+
+				// Build nested pixverse object from the escape hatch first, then let
+				// dedicated flags override individual fields.
+				let pixVerseOptions: OpenAPIPixVerseOptions = {};
+				if (options.pixverseJson) {
+					try {
+						pixVerseOptions = JSON.parse(options.pixverseJson) as OpenAPIPixVerseOptions;
+					} catch {
+						throw new Error('--pixverse-json must be valid JSON');
+					}
+				}
+
+				const agentType = ensureEnum(options.agentType, pixVerseAgentTypes, '--agent-type');
+				if (agentType !== undefined) {
+					pixVerseOptions.agentType = agentType;
+				}
+
+				if (options.sourceVideoId !== undefined) {
+					pixVerseOptions.sourceVideoId = options.sourceVideoId;
+				}
+
+				if (options.restyleId !== undefined) {
+					pixVerseOptions.restyleId = options.restyleId;
+				}
+
+				if (options.lipSyncTts) {
+					pixVerseOptions.lipSyncTtsSwitch = true;
+				}
+
+				if (options.lipSyncSpeakerId !== undefined) {
+					pixVerseOptions.lipSyncTtsSpeakerId = options.lipSyncSpeakerId;
+				}
+
+				if (options.lipSyncContent !== undefined) {
+					pixVerseOptions.lipSyncTtsContent = options.lipSyncContent;
+				}
+
+				// lip_sync TTS: the server validator gates on the nested `tts`
+				// object while the provider reads the lipSyncTts* fields. Populate
+				// both from the --lip-sync-* flags so the TTS path passes validation
+				// end to end (skip if --pixverse-json already provided a tts object).
+				if (
+					capability === 'lip_sync' &&
+					!pixVerseOptions.tts &&
+					options.lipSyncSpeakerId !== undefined &&
+					options.lipSyncContent !== undefined
+				) {
+					pixVerseOptions.tts = {
+						speakerId: options.lipSyncSpeakerId,
+						content: options.lipSyncContent,
+					};
+				}
+
+				const params: OpenAPICreatePixVerseVideoParams = {
+					capability,
+					model: ensureEnum(options.model, pixVerseModels, '--model'),
+					language: ensureEnum(options.language, pixVerseLanguages, '--language'),
+					prompt: options.prompt,
+					quality: ensureEnum(options.quality, pixVerseQualities, '--quality'),
+					aspectRatio: ensureEnum(options.aspectRatio, pixVerseAspectRatios, '--aspect-ratio'),
+					duration: options.duration === undefined ? undefined : Number(options.duration),
+					sourceTaskId: options.sourceTaskId,
+					images: options.image.length > 0 ? options.image.map(parsePixVerseAsset) : undefined,
+					videos: options.video.length > 0 ? options.video.map(parsePixVerseAsset) : undefined,
+					audios: options.audio.length > 0 ? options.audio.map(parsePixVerseAsset) : undefined,
+					pixverse: Object.keys(pixVerseOptions).length > 0 ? pixVerseOptions : undefined,
+				};
+
+				const client = await getOpenAPIClient();
+				const created = await client.createPixVerseVideoGeneration(params);
+				const taskId = normalizeVideoTaskId(created.taskId);
+
+				if (!options.wait) {
+					if (options.json) {
+						printJson(created);
+					} else {
+						console.log(`\u2713 PixVerse video generation task created: ${taskId}`);
+					}
+
+					return;
+				}
+
+				const result = await pollOpenAPI<OpenAPIVideoGenerationTaskDetail>({
+					getStatus: async () => client.getVideoGenerationTask(taskId),
+					isDone: (r) => r.status === 'success',
+					isFailed: (r) => r.status === 'failed',
+					getErrorMessage: () => 'PixVerse video generation failed',
+					options: {
+						timeout: Number(options.timeout),
+						label: 'Generating PixVerse video',
+						json: options.json,
+					},
+				});
+
+				if (options.json) {
+					printJson(result);
+				} else {
+					printVideoDetail(result);
+				}
+			} catch (error) {
+				handleError(error, options.json);
+			}
+		});
+
+	pixverse
+		.command('estimate')
+		.description('Estimate credits for a PixVerse video generation task')
+		.requiredOption('--capability <capability>', `Capability: ${pixVerseCapabilities.join(', ')}`)
+		.option('--model <model>', `Model: ${pixVerseModels.join(', ')} (default pixverse)`)
+		.option('--language <lang>', `Service region: ${pixVerseLanguages.join(', ')} (default en)`)
+		.option('--quality <quality>', `Quality: ${pixVerseQualities.join(', ')} (default 720p)`)
+		.option('--duration <seconds>', 'Video duration in seconds (1-60, default 5)')
+		.option(
+			'--agent-type <type>',
+			`Agent type: ${pixVerseAgentTypes.join(', ')} (capability=agent)`,
+		)
+		.option('-j, --json', 'Output JSON', false)
+		.action(async (options: PixVerseEstimateOptions) => {
+			try {
+				const capability = ensureEnum(options.capability, pixVerseCapabilities, '--capability')!;
+
+				if (options.duration !== undefined) {
+					const dur = Number(options.duration);
+					if (!Number.isInteger(dur) || dur < 1 || dur > 60) {
+						throw new Error('--duration must be an integer between 1 and 60');
+					}
+				}
+
+				const agentType = ensureEnum(options.agentType, pixVerseAgentTypes, '--agent-type');
+
+				const params: OpenAPIEstimatePixVerseCreditsParams = {
+					capability,
+					model: ensureEnum(options.model, pixVerseModels, '--model'),
+					language: ensureEnum(options.language, pixVerseLanguages, '--language'),
+					quality: ensureEnum(options.quality, pixVerseQualities, '--quality'),
+					duration: options.duration === undefined ? undefined : Number(options.duration),
+					pixverse: agentType === undefined ? undefined : {agentType},
+				};
+
+				const client = await getOpenAPIClient();
+				const result = await client.estimatePixVerseVideoCredits(params);
+
+				if (options.json) {
+					printJson(result);
+				} else {
+					printDetail('PixVerse Credit Estimate', [
 						['Tokens', result.tokens],
 						['Credits', result.credits],
 					]);

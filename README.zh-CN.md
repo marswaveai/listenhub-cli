@@ -204,12 +204,14 @@ listenhub openapi subscription -j
 
 ### 视频
 
-| 命令                     | 说明             |
-| ------------------------ | ---------------- |
-| `openapi video create`   | 创建视频生成任务 |
-| `openapi video get <id>` | 查看视频任务详情 |
-| `openapi video list`     | 列出视频任务     |
-| `openapi video estimate` | 预估积分消耗     |
+| 命令                              | 说明                                       |
+| --------------------------------- | ------------------------------------------ |
+| `openapi video create`            | 创建视频生成任务                           |
+| `openapi video get <id>`          | 查看视频任务详情                           |
+| `openapi video list`              | 列出视频任务                               |
+| `openapi video estimate`          | 预估积分消耗                               |
+| `openapi video pixverse generate` | 创建 PixVerse 视频任务（原子能力 + Agent） |
+| `openapi video pixverse estimate` | 预估 PixVerse 积分消耗                     |
 
 ### 内容提取
 
@@ -292,6 +294,40 @@ listenhub openapi video create --prompt "镜头缓缓拉远" \
 
 # 生成前预估积分
 listenhub openapi video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10
+```
+
+### OpenAPI：PixVerse 视频生成
+
+PixVerse 支持原子能力（`text_to_video`、`image_to_video`、`transition`、`multi_transition`、`fusion`、`restyle`、`mimic`、`lip_sync`）和营销 `agent`（`ad_master` / `promo_mix`）。`--capability` 必填。`--language en`（默认）走国际站，`--language zh` 走国内站。图片、视频、音频素材可在 URL 后加 `:时长` 后缀（`url:秒数`）。少见的嵌套字段用 `--pixverse-json` 直接传 JSON。
+
+```bash
+# 文字生成视频
+listenhub openapi video pixverse generate --capability text_to_video \
+  --prompt "一只猫在弹钢琴" --quality 720p --aspect-ratio 16:9 --duration 5 --no-wait -j
+
+# 图片生成视频（素材支持 url:时长）
+listenhub openapi video pixverse generate --capability image_to_video \
+  --image https://example.com/photo.jpg --prompt "镜头缓缓推近"
+
+# 口型同步 TTS，复用已成功的 PixVerse 任务
+listenhub openapi video pixverse generate --capability lip_sync \
+  --source-task-id 6a2016607ebd26d050c585ca \
+  --lip-sync-tts --lip-sync-speaker-id speaker-1 --lip-sync-content "你好世界"
+
+# 营销 Agent（promo_mix 至少 4 张商品图）
+listenhub openapi video pixverse generate --capability agent --agent-type promo_mix \
+  --quality 1080p --duration 30 \
+  --image https://example.com/p1.jpg --image https://example.com/p2.jpg \
+  --image https://example.com/p3.jpg --image https://example.com/p4.jpg
+
+# 用 --pixverse-json 传嵌套字段
+listenhub openapi video pixverse generate --capability fusion \
+  --prompt "@hero 站在 @bg 前" \
+  --pixverse-json '{"imageReferences":[{"type":"subject","imageUrl":"https://example.com/hero.png","refName":"hero"},{"type":"background","imageUrl":"https://example.com/bg.png","refName":"bg"}]}'
+
+# 预估积分
+listenhub openapi video pixverse estimate --capability text_to_video --quality 720p --duration 5
+listenhub openapi video pixverse estimate --capability agent --agent-type ad_master --duration 30
 ```
 
 ### OAuth：音乐生成
