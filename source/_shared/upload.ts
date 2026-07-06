@@ -1,8 +1,15 @@
 import {access, readFile, stat} from 'node:fs/promises';
 import path from 'node:path';
-import type {ListenHubClient} from '@marswave/listenhub-sdk';
 
 type FileAcceptType = 'audio' | 'image' | 'video';
+
+type FileUploadClient = {
+	createFileUpload(params: {
+		fileKey: string;
+		contentType: string;
+		category: string;
+	}): Promise<{presignedUrl: string; fileUrl: string}>;
+};
 
 const audioExtensions = new Set(['.mp3', '.wav', '.flac', '.m4a', '.ogg', '.aac']);
 const imageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
@@ -43,7 +50,7 @@ function allowedExtensions(accept: FileAcceptType): Set<string> {
 }
 
 export async function resolveFileOrUrl(
-	client: ListenHubClient,
+	client: FileUploadClient,
 	input: string,
 	options: {accept: FileAcceptType; category?: string},
 ): Promise<string> {

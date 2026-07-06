@@ -1,3 +1,6 @@
+import {mkdtemp, rm, writeFile} from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {Command} from 'commander';
 import {register as registerSpeakers} from '../../source/openapi/speakers.js';
@@ -24,6 +27,7 @@ const mockClient = vi.hoisted(() => ({
 	getVideoGenerationTask: vi.fn(),
 	listVideoGenerationTasks: vi.fn(),
 	estimateVideoCredits: vi.fn(),
+	createFileUpload: vi.fn(),
 	createPixVerseVideoGeneration: vi.fn(),
 	estimatePixVerseVideoCredits: vi.fn(),
 	createContentExtract: vi.fn(),
@@ -54,7 +58,37 @@ beforeEach(() => {
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	vi.unstubAllGlobals();
 });
+
+function pngBytes(width: number, height: number) {
+	return new Uint8Array([
+		0x89,
+		0x50,
+		0x4e,
+		0x47,
+		0x0d,
+		0x0a,
+		0x1a,
+		0x0a,
+		0x00,
+		0x00,
+		0x00,
+		0x0d,
+		0x49,
+		0x48,
+		0x44,
+		0x52,
+		(width >>> 24) & 0xff,
+		(width >>> 16) & 0xff,
+		(width >>> 8) & 0xff,
+		width & 0xff,
+		(height >>> 24) & 0xff,
+		(height >>> 16) & 0xff,
+		(height >>> 8) & 0xff,
+		height & 0xff,
+	]);
+}
 
 describe('speakers list', () => {
 	it('calls listSpeakers without filter and prints JSON', async () => {
@@ -189,6 +223,8 @@ describe('video create', () => {
 				'Timelapse',
 				'--first-frame',
 				'https://img.example.com/frame.jpg',
+				'--first-frame-meta',
+				'1080x1920:3600000',
 				'--no-wait',
 				'--json',
 			],
@@ -205,8 +241,173 @@ describe('video create', () => {
 						role: 'first_frame',
 					},
 				],
+				referenceImages: [{role: 'first_frame', width: 1080, height: 1920, size: 3_600_000}],
 			}),
 		);
+	});
+
+	it('uploads a local first-frame image and auto-populates reference metadata', async () => {
+		const tmpDir = await mkdtemp(path.join(os.tmpdir(), 'listenhub-cli-video-'));
+		const framePath = path.join(tmpDir, 'frame.png');
+		await writeFile(framePath, pngBytes(1080, 1920));
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValue(new Response(null, {status: 200, statusText: 'OK'}));
+		vi.stubGlobal('fetch', fetchMock);
+		mockClient.createFileUpload.mockResolvedValue({
+			presignedUrl: 'https://upload.example.com/frame.png',
+			fileUrl: 'https://storage.googleapis.com/private-bucket/uploads/frame.png',
+		});
+		mockClient.createVideoGeneration.mockResolvedValue({taskId: '6a201660b9fc373811288f11'});
+		vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		try {
+			const parent = makeParent();
+			registerVideo(parent);
+
+			await parent.parseAsync(
+				[
+					'video',
+					'create',
+					'--prompt',
+					'Timelapse',
+					'--first-frame',
+					framePath,
+					'--no-wait',
+					'--json',
+				],
+				{from: 'user'},
+			);
+
+			expect(mockClient.createFileUpload).toHaveBeenCalledWith({
+				fileKey: 'frame.png',
+				contentType: 'image/png',
+				category: 'episode',
+			});
+			expect(fetchMock).toHaveBeenCalledWith(
+				'https://upload.example.com/frame.png',
+				expect.objectContaining({
+					method: 'PUT',
+					headers: expect.objectContaining({'Content-Type': 'image/png'}),
+				}),
+			);
+			expect(mockClient.createVideoGeneration).toHaveBeenCalledWith(
+				expect.objectContaining({
+					content: [
+						{type: 'text', text: 'Timelapse'},
+						{
+							type: 'image_url',
+							image_url: {url: 'https://storage.googleapis.com/private-bucket/uploads/frame.png'},
+							role: 'first_frame',
+						},
+					],
+					referenceImages: [{role: 'first_frame', width: 1080, height: 1920, size: 24}],
+				}),
+			);
+		} finally {
+			await rm(tmpDir, {recursive: true, force: true});
+		}
+	});
+
+	it('includes reference video metadata when provided', async () => {
+		mockClient.createVideoGeneration.mockResolvedValue({taskId: '6a201660b9fc373811288f10'});
+		vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'create',
+				'--prompt',
+				'Restyle this clip',
+				'--reference-video',
+				'https://video.example.com/ref.mp4',
+				'--reference-video-meta',
+				'1280x720:5:30:8000000',
+				'--input-video-duration',
+				'5',
+				'--no-wait',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.createVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({
+				content: [
+					{type: 'text', text: 'Restyle this clip'},
+					{
+						type: 'video_url',
+						video_url: {url: 'https://video.example.com/ref.mp4'},
+						role: 'reference_video',
+					},
+				],
+				inputVideoDuration: 5,
+				referenceVideos: [
+					{
+						role: 'reference_video',
+						width: 1280,
+						height: 720,
+						duration: 5,
+						fps: 30,
+						size: 8_000_000,
+					},
+				],
+			}),
+		);
+	});
+});
+
+describe('video estimate', () => {
+	it('passes reference metadata to estimateVideoCredits', async () => {
+		mockClient.estimateVideoCredits.mockResolvedValue({tokens: 3320, credits: 10});
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'estimate',
+				'--model',
+				'doubao-seedance-2-pro',
+				'--resolution',
+				'720p',
+				'--duration',
+				'5',
+				'--has-video-input',
+				'--input-video-duration',
+				'5',
+				'--reference-video-meta',
+				'1280x720:5:30:8000000',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.estimateVideoCredits).toHaveBeenCalledWith(
+			expect.objectContaining({
+				model: 'doubao-seedance-2-pro',
+				resolution: '720p',
+				duration: 5,
+				hasVideoInput: true,
+				inputVideoDuration: 5,
+				referenceVideos: [
+					{
+						role: 'reference_video',
+						width: 1280,
+						height: 720,
+						duration: 5,
+						fps: 30,
+						size: 8_000_000,
+					},
+				],
+			}),
+		);
+		expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({tokens: 3320, credits: 10}, null, 2));
 	});
 });
 
