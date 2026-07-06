@@ -245,6 +245,7 @@ listenhub openapi subscription -j
 OAuth 命令（`music cover`、`image create`、`video create`）自动检测本地路径，校验格式和大小，上传到云存储后传给 API。
 
 OpenAPI `image create` 通过 base64 编码支持本地参考图（CLI 侧不限制文件大小）。
+OpenAPI `video create` 通过预签名 URL 支持本地图片/视频/音频路径。Seedance 的本地图片参考会自动带上宽高元数据；远程图片 URL 和所有参考视频仍需要显式 metadata。
 
 ```bash
 # OAuth：本地音频用于翻唱（mp3, wav, flac, m4a, ogg, aac；最大 20MB）
@@ -256,7 +257,10 @@ listenhub image create --prompt "以此为灵感" --reference ./photo.jpg
 # OpenAPI：本地图片参考（base64 编码）
 listenhub openapi image create --prompt "这种风格" --reference ./sketch.png --provider google
 
-# Seedance 图片/视频参考素材需要尺寸元数据，否则服务端会返回 32004 参数错误
+# OpenAPI Seedance：本地图片参考会自动补宽高 metadata
+listenhub openapi video create --prompt "同样风格" --first-frame ./frame.png
+
+# 远程 URL 和参考视频仍需要尺寸元数据，否则服务端会返回 32004 参数错误
 listenhub openapi video create --prompt "同样风格" \
   --reference-video https://example.com/clip.mp4 \
   --reference-video-meta 1280x720:5:30:8000000 \
@@ -291,7 +295,11 @@ listenhub openapi podcast text-stream abc123 --event script
 # 文字生成视频
 listenhub openapi video create --prompt "一只猫在弹钢琴" --no-wait -j
 
-# 指定首帧
+# 指定本地首帧（自动上传 + 自动 metadata）
+listenhub openapi video create --prompt "镜头缓缓拉远" \
+  --first-frame ./frame.png
+
+# 指定远程首帧
 listenhub openapi video create --prompt "镜头缓缓拉远" \
   --first-frame https://example.com/frame.png \
   --first-frame-meta 1080x1920:3600000

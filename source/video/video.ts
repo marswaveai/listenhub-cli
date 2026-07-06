@@ -14,6 +14,7 @@ import {printDetail, printJson, printTable} from '../_shared/output.js';
 import {pollVideoTaskUntilDone} from '../_shared/polling.js';
 import {resolveFileOrUrl} from '../_shared/upload.js';
 import {normalizeVideoTaskId} from '../_shared/video-task-id.js';
+import {readLocalImageMeta} from '../_shared/image-dimensions.js';
 import {
 	isSeedanceVideoModel,
 	parseImageMeta,
@@ -78,17 +79,47 @@ type EstimateVideoGenerationCreditsParamsWithMetadata = EstimateVideoGenerationC
 const allowedVideoAudioExtensions = new Set(['.mp3', '.wav']);
 const allowedVideoExtensions = new Set(['.mp4', '.mov']);
 
-function getReferenceImages(options: VideoCreateOptions): VideoReferenceImageMeta[] {
+function isHttpUrl(value: string): boolean {
+	return value.startsWith('http://') || value.startsWith('https://');
+}
+
+async function getReferenceImages(
+	options: VideoCreateOptions,
+	defaultModel: string,
+): Promise<VideoReferenceImageMeta[]> {
 	const images: VideoReferenceImageMeta[] = [];
+	const inferLocalImages = isSeedanceVideoModel(options.model, defaultModel);
+
 	if (options.firstFrameMeta !== undefined) {
 		images.push(parseImageMeta(options.firstFrameMeta, 'first_frame'));
+	} else if (
+		inferLocalImages &&
+		options.firstFrame !== undefined &&
+		!isHttpUrl(options.firstFrame)
+	) {
+		images.push(await readLocalImageMeta(path.resolve(options.firstFrame.trim()), 'first_frame'));
 	}
+
 	if (options.lastFrameMeta !== undefined) {
 		images.push(parseImageMeta(options.lastFrameMeta, 'last_frame'));
+	} else if (inferLocalImages && options.lastFrame !== undefined && !isHttpUrl(options.lastFrame)) {
+		images.push(await readLocalImageMeta(path.resolve(options.lastFrame.trim()), 'last_frame'));
 	}
-	for (const meta of options.referenceImageMeta) {
-		images.push(parseImageMeta(meta, 'reference_image'));
-	}
+
+	const referenceImages = await Promise.all(
+		options.referenceImage.map(async (ref, index) => {
+			const meta = options.referenceImageMeta[index];
+			if (meta !== undefined) return parseImageMeta(meta, 'reference_image');
+			if (inferLocalImages && !isHttpUrl(ref)) {
+				return readLocalImageMeta(path.resolve(ref.trim()), 'reference_image');
+			}
+
+			return undefined;
+		}),
+	);
+	images.push(
+		...referenceImages.filter((image): image is VideoReferenceImageMeta => image !== undefined),
+	);
 
 	return images;
 }
@@ -106,9 +137,9 @@ function validateReferenceMetadata(options: VideoCreateOptions): void {
 	}
 	if (
 		options.referenceImageMeta.length > 0 &&
-		options.referenceImageMeta.length !== options.referenceImage.length
+		options.referenceImageMeta.length > options.referenceImage.length
 	) {
-		throw new Error('--reference-image-meta count must match --reference-image count');
+		throw new Error('--reference-image-meta count cannot exceed --reference-image count');
 	}
 	if (
 		options.referenceVideoMeta.length > 0 &&
@@ -121,17 +152,26 @@ function validateReferenceMetadata(options: VideoCreateOptions): void {
 		return;
 	}
 
-	if (options.firstFrame !== undefined && options.firstFrameMeta === undefined) {
+	if (
+		options.firstFrame !== undefined &&
+		options.firstFrameMeta === undefined &&
+		isHttpUrl(options.firstFrame)
+	) {
 		throw new Error('Seedance --first-frame requires --first-frame-meta WIDTHxHEIGHT[:SIZE]');
 	}
-	if (options.lastFrame !== undefined && options.lastFrameMeta === undefined) {
+	if (
+		options.lastFrame !== undefined &&
+		options.lastFrameMeta === undefined &&
+		isHttpUrl(options.lastFrame)
+	) {
 		throw new Error('Seedance --last-frame requires --last-frame-meta WIDTHxHEIGHT[:SIZE]');
 	}
 	if (
-		options.referenceImage.length > 0 &&
-		options.referenceImageMeta.length !== options.referenceImage.length
+		options.referenceImage.some(
+			(ref, index) => options.referenceImageMeta[index] === undefined && isHttpUrl(ref),
+		)
 	) {
-		throw new Error('Seedance --reference-image requires one --reference-image-meta per image');
+		throw new Error('Seedance URL --reference-image requires one --reference-image-meta per image');
 	}
 	if (
 		options.referenceVideo.length > 0 &&
@@ -282,7 +322,7 @@ export async function createVideo(
 		content.push({type: 'audio_url', audio_url: {url}, role: 'reference_audio'});
 	}
 
-	const referenceImages = getReferenceImages(options);
+	const referenceImages = await getReferenceImages(options, 'happyhorse');
 	const referenceVideos = getReferenceVideos(options);
 	const params: CreateVideoGenerationParamsWithMetadata = {
 		content,

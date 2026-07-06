@@ -245,6 +245,7 @@ Creation commands also support:
 OAuth commands (`music cover`, `image create`, `video create`) auto-detect local paths, validate format/size, and upload to cloud storage before calling the API.
 
 OpenAPI `image create` supports local file references via base64 encoding (no size limit enforced by CLI).
+OpenAPI `video create` supports local image/video/audio paths via a presigned upload URL. For Seedance, local image references automatically include width/height metadata; remote image URLs and all reference videos still need explicit metadata.
 
 ```bash
 # OAuth: local audio for cover (mp3, wav, flac, m4a, ogg, aac; max 20MB)
@@ -256,7 +257,10 @@ listenhub image create --prompt "inspired by this" --reference ./photo.jpg
 # OpenAPI: local image reference (base64 encoded)
 listenhub openapi image create --prompt "in this style" --reference ./sketch.png --provider google
 
-# Seedance video/image references need dimensions to avoid server-side 32004 validation errors
+# OpenAPI Seedance: local image references auto-populate width/height metadata
+listenhub openapi video create --prompt "same style" --first-frame ./frame.png
+
+# Remote URLs and reference videos need dimensions to avoid server-side 32004 validation errors
 listenhub openapi video create --prompt "same style" \
   --reference-video https://example.com/clip.mp4 \
   --reference-video-meta 1280x720:5:30:8000000 \
@@ -291,7 +295,11 @@ listenhub openapi podcast text-stream abc123 --event script
 # Text-to-video
 listenhub openapi video create --prompt "A cat playing piano" --no-wait -j
 
-# With first frame
+# With local first frame (auto-upload + auto metadata)
+listenhub openapi video create --prompt "Camera zooms out" \
+  --first-frame ./frame.png
+
+# With remote first frame
 listenhub openapi video create --prompt "Camera zooms out" \
   --first-frame https://example.com/frame.png \
   --first-frame-meta 1080x1920:3600000

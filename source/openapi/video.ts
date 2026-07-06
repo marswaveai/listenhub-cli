@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type {Command} from 'commander';
 import type {
 	OpenAPICreatePixVerseVideoParams,
@@ -10,6 +11,8 @@ import type {
 	OpenAPIVideoGenerationTaskStatus,
 } from '@marswave/listenhub-sdk';
 import {handleError, printDetail, printJson, printTable} from '../_shared/output.js';
+import {readLocalImageMeta} from '../_shared/image-dimensions.js';
+import {resolveFileOrUrl} from '../_shared/upload.js';
 import {normalizeVideoTaskId} from '../_shared/video-task-id.js';
 import {
 	isSeedanceVideoModel,
@@ -143,6 +146,8 @@ type OpenAPIEstimateVideoCreditsParamsWithMetadata = OpenAPIEstimateVideoCredits
 	referenceVideos?: VideoReferenceVideoMeta[];
 };
 
+type FileUploadClient = Parameters<typeof resolveFileOrUrl>[0];
+
 type VideoGetOptions = {
 	json: boolean;
 };
@@ -166,17 +171,47 @@ type VideoEstimateOptions = {
 	json: boolean;
 };
 
-function getReferenceImages(options: VideoCreateOptions): VideoReferenceImageMeta[] {
+function isHttpUrl(value: string): boolean {
+	return value.startsWith('http://') || value.startsWith('https://');
+}
+
+async function getReferenceImages(
+	options: VideoCreateOptions,
+	defaultModel: string,
+): Promise<VideoReferenceImageMeta[]> {
 	const images: VideoReferenceImageMeta[] = [];
+	const inferLocalImages = isSeedanceVideoModel(options.model, defaultModel);
+
 	if (options.firstFrameMeta !== undefined) {
 		images.push(parseImageMeta(options.firstFrameMeta, 'first_frame'));
+	} else if (
+		inferLocalImages &&
+		options.firstFrame !== undefined &&
+		!isHttpUrl(options.firstFrame)
+	) {
+		images.push(await readLocalImageMeta(path.resolve(options.firstFrame.trim()), 'first_frame'));
 	}
+
 	if (options.lastFrameMeta !== undefined) {
 		images.push(parseImageMeta(options.lastFrameMeta, 'last_frame'));
+	} else if (inferLocalImages && options.lastFrame !== undefined && !isHttpUrl(options.lastFrame)) {
+		images.push(await readLocalImageMeta(path.resolve(options.lastFrame.trim()), 'last_frame'));
 	}
-	for (const meta of options.referenceImageMeta) {
-		images.push(parseImageMeta(meta, 'reference_image'));
-	}
+
+	const referenceImages = await Promise.all(
+		options.referenceImage.map(async (ref, index) => {
+			const meta = options.referenceImageMeta[index];
+			if (meta !== undefined) return parseImageMeta(meta, 'reference_image');
+			if (inferLocalImages && !isHttpUrl(ref)) {
+				return readLocalImageMeta(path.resolve(ref.trim()), 'reference_image');
+			}
+
+			return undefined;
+		}),
+	);
+	images.push(
+		...referenceImages.filter((image): image is VideoReferenceImageMeta => image !== undefined),
+	);
 
 	return images;
 }
@@ -194,9 +229,9 @@ function validateReferenceMetadata(options: VideoCreateOptions): void {
 	}
 	if (
 		options.referenceImageMeta.length > 0 &&
-		options.referenceImageMeta.length !== options.referenceImage.length
+		options.referenceImageMeta.length > options.referenceImage.length
 	) {
-		throw new Error('--reference-image-meta count must match --reference-image count');
+		throw new Error('--reference-image-meta count cannot exceed --reference-image count');
 	}
 	if (
 		options.referenceVideoMeta.length > 0 &&
@@ -209,17 +244,26 @@ function validateReferenceMetadata(options: VideoCreateOptions): void {
 		return;
 	}
 
-	if (options.firstFrame !== undefined && options.firstFrameMeta === undefined) {
+	if (
+		options.firstFrame !== undefined &&
+		options.firstFrameMeta === undefined &&
+		isHttpUrl(options.firstFrame)
+	) {
 		throw new Error('Seedance --first-frame requires --first-frame-meta WIDTHxHEIGHT[:SIZE]');
 	}
-	if (options.lastFrame !== undefined && options.lastFrameMeta === undefined) {
+	if (
+		options.lastFrame !== undefined &&
+		options.lastFrameMeta === undefined &&
+		isHttpUrl(options.lastFrame)
+	) {
 		throw new Error('Seedance --last-frame requires --last-frame-meta WIDTHxHEIGHT[:SIZE]');
 	}
 	if (
-		options.referenceImage.length > 0 &&
-		options.referenceImageMeta.length !== options.referenceImage.length
+		options.referenceImage.some(
+			(ref, index) => options.referenceImageMeta[index] === undefined && isHttpUrl(ref),
+		)
 	) {
-		throw new Error('Seedance --reference-image requires one --reference-image-meta per image');
+		throw new Error('Seedance URL --reference-image requires one --reference-image-meta per image');
 	}
 	if (
 		options.referenceVideo.length > 0 &&
@@ -251,13 +295,13 @@ export function register(openapi: Command) {
 		.command('create')
 		.description('Create a video generation task')
 		.requiredOption('--prompt <text>', 'Video description / prompt')
-		.option('--first-frame <url>', 'First frame image URL')
+		.option('--first-frame <path-or-url>', 'First frame image')
 		.option('--first-frame-meta <meta>', 'First frame metadata WIDTHxHEIGHT[:SIZE]')
-		.option('--last-frame <url>', 'Last frame image URL (requires --first-frame)')
+		.option('--last-frame <path-or-url>', 'Last frame image (requires --first-frame)')
 		.option('--last-frame-meta <meta>', 'Last frame metadata WIDTHxHEIGHT[:SIZE]')
 		.option(
-			'--reference-image <url>',
-			'Reference image URL (repeatable, max 9)',
+			'--reference-image <path-or-url>',
+			'Reference image (repeatable, max 9)',
 			collect,
 			[] as string[],
 		)
@@ -268,8 +312,8 @@ export function register(openapi: Command) {
 			[] as string[],
 		)
 		.option(
-			'--reference-video <url>',
-			'Reference video URL (repeatable, max 3)',
+			'--reference-video <path-or-url>',
+			'Reference video (repeatable, max 3)',
 			collect,
 			[] as string[],
 		)
@@ -280,8 +324,8 @@ export function register(openapi: Command) {
 			[] as string[],
 		)
 		.option(
-			'--reference-audio <url>',
-			'Reference audio URL (repeatable, max 3)',
+			'--reference-audio <path-or-url>',
+			'Reference audio (repeatable, max 3)',
 			collect,
 			[] as string[],
 		)
@@ -367,40 +411,63 @@ export function register(openapi: Command) {
 					}
 				}
 
+				const client = await getOpenAPIClient();
+				const uploadClient = client as unknown as FileUploadClient;
+
 				// Build content array
 				const content: OpenAPICreateVideoGenerationParams['content'] = [
 					{type: 'text', text: options.prompt},
 				];
 
 				if (options.firstFrame) {
+					const url = await resolveFileOrUrl(uploadClient, options.firstFrame, {
+						accept: 'image',
+						category: 'episode',
+					});
 					content.push({
 						type: 'image_url',
-						image_url: {url: options.firstFrame},
+						image_url: {url},
 						role: 'first_frame',
 					});
 				}
 
 				if (options.lastFrame) {
+					const url = await resolveFileOrUrl(uploadClient, options.lastFrame, {
+						accept: 'image',
+						category: 'episode',
+					});
 					content.push({
 						type: 'image_url',
-						image_url: {url: options.lastFrame},
+						image_url: {url},
 						role: 'last_frame',
 					});
 				}
 
-				for (const url of options.referenceImage) {
+				for (const ref of options.referenceImage) {
+					const url = await resolveFileOrUrl(uploadClient, ref, {
+						accept: 'image',
+						category: 'episode',
+					}); // eslint-disable-line no-await-in-loop
 					content.push({type: 'image_url', image_url: {url}, role: 'reference_image'});
 				}
 
-				for (const url of options.referenceVideo) {
+				for (const ref of options.referenceVideo) {
+					const url = await resolveFileOrUrl(uploadClient, ref, {
+						accept: 'video',
+						category: 'episode',
+					}); // eslint-disable-line no-await-in-loop
 					content.push({type: 'video_url', video_url: {url}, role: 'reference_video'});
 				}
 
-				for (const url of options.referenceAudio) {
+				for (const ref of options.referenceAudio) {
+					const url = await resolveFileOrUrl(uploadClient, ref, {
+						accept: 'audio',
+						category: 'episode',
+					}); // eslint-disable-line no-await-in-loop
 					content.push({type: 'audio_url', audio_url: {url}, role: 'reference_audio'});
 				}
 
-				const referenceImages = getReferenceImages(options);
+				const referenceImages = await getReferenceImages(options, 'doubao-seedance-2-fast');
 				const referenceVideos = getReferenceVideos(options);
 				const params: OpenAPIVideoGenerationParamsWithMetadata = {
 					content,
@@ -418,7 +485,6 @@ export function register(openapi: Command) {
 					...(referenceVideos.length > 0 && {referenceVideos}),
 				};
 
-				const client = await getOpenAPIClient();
 				const {taskId: rawTaskId} = await client.createVideoGeneration(params);
 				const taskId = normalizeVideoTaskId(rawTaskId);
 
