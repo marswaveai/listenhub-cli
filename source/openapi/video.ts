@@ -23,7 +23,6 @@ import {
 } from '../_shared/video-reference-metadata.js';
 import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
-import {getOpenAPIUploadClient} from './upload.js';
 
 function collect(value: string, previous: string[]): string[] {
 	return [...previous, value];
@@ -411,7 +410,6 @@ export function register(openapi: Command) {
 				}
 
 				const client = await getOpenAPIClient();
-				const uploadClient = getOpenAPIUploadClient();
 
 				// Build content array
 				const content: OpenAPICreateVideoGenerationParams['content'] = [
@@ -419,7 +417,7 @@ export function register(openapi: Command) {
 				];
 
 				if (options.firstFrame) {
-					const url = await resolveFileOrUrl(uploadClient, options.firstFrame, {
+					const url = await resolveFileOrUrl(client, options.firstFrame, {
 						accept: 'image',
 						category: 'episode',
 					});
@@ -431,7 +429,7 @@ export function register(openapi: Command) {
 				}
 
 				if (options.lastFrame) {
-					const url = await resolveFileOrUrl(uploadClient, options.lastFrame, {
+					const url = await resolveFileOrUrl(client, options.lastFrame, {
 						accept: 'image',
 						category: 'episode',
 					});
@@ -443,7 +441,7 @@ export function register(openapi: Command) {
 				}
 
 				for (const ref of options.referenceImage) {
-					const url = await resolveFileOrUrl(uploadClient, ref, {
+					const url = await resolveFileOrUrl(client, ref, {
 						accept: 'image',
 						category: 'episode',
 					}); // eslint-disable-line no-await-in-loop
@@ -451,7 +449,7 @@ export function register(openapi: Command) {
 				}
 
 				for (const ref of options.referenceVideo) {
-					const url = await resolveFileOrUrl(uploadClient, ref, {
+					const url = await resolveFileOrUrl(client, ref, {
 						accept: 'video',
 						category: 'episode',
 					}); // eslint-disable-line no-await-in-loop
@@ -459,7 +457,7 @@ export function register(openapi: Command) {
 				}
 
 				for (const ref of options.referenceAudio) {
-					const url = await resolveFileOrUrl(uploadClient, ref, {
+					const url = await resolveFileOrUrl(client, ref, {
 						accept: 'audio',
 						category: 'episode',
 					}); // eslint-disable-line no-await-in-loop
