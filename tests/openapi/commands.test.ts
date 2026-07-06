@@ -23,7 +23,6 @@ const mockClient = vi.hoisted(() => ({
 	getStorybook: vi.fn(),
 	generateStorybookVideo: vi.fn(),
 	createImage: vi.fn(),
-	createFileUpload: vi.fn(),
 	createVideoGeneration: vi.fn(),
 	getVideoGenerationTask: vi.fn(),
 	listVideoGenerationTasks: vi.fn(),
@@ -35,8 +34,16 @@ const mockClient = vi.hoisted(() => ({
 	getSubscription: vi.fn(),
 }));
 
+const mockUploadClient = vi.hoisted(() => ({
+	createFileUpload: vi.fn(),
+}));
+
 vi.mock('../../source/openapi/client.js', () => ({
 	getOpenAPIClient: vi.fn().mockResolvedValue(mockClient),
+}));
+
+vi.mock('../../source/openapi/upload.js', () => ({
+	getOpenAPIUploadClient: vi.fn(() => mockUploadClient),
 }));
 
 vi.mock('ora', () => ({
@@ -52,6 +59,9 @@ function makeParent(): Command {
 beforeEach(() => {
 	// Only reset call counts, not implementations
 	for (const fn of Object.values(mockClient)) {
+		fn.mockReset();
+	}
+	for (const fn of Object.values(mockUploadClient)) {
 		fn.mockReset();
 	}
 });
@@ -254,7 +264,7 @@ describe('video create', () => {
 			.fn()
 			.mockResolvedValue(new Response(null, {status: 200, statusText: 'OK'}));
 		vi.stubGlobal('fetch', fetchMock);
-		mockClient.createFileUpload.mockResolvedValue({
+		mockUploadClient.createFileUpload.mockResolvedValue({
 			presignedUrl: 'https://upload.example.com/frame.png',
 			fileUrl: 'https://storage.googleapis.com/private-bucket/uploads/frame.png',
 		});
@@ -279,7 +289,7 @@ describe('video create', () => {
 				{from: 'user'},
 			);
 
-			expect(mockClient.createFileUpload).toHaveBeenCalledWith({
+			expect(mockUploadClient.createFileUpload).toHaveBeenCalledWith({
 				fileKey: 'frame.png',
 				contentType: 'image/png',
 				category: 'episode',

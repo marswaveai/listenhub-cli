@@ -23,6 +23,7 @@ import {
 } from '../_shared/video-reference-metadata.js';
 import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
+import {getOpenAPIUploadClient} from './upload.js';
 
 function collect(value: string, previous: string[]): string[] {
 	return [...previous, value];
@@ -145,8 +146,6 @@ type OpenAPIEstimateVideoCreditsParamsWithMetadata = OpenAPIEstimateVideoCredits
 	referenceImages?: VideoReferenceImageMeta[];
 	referenceVideos?: VideoReferenceVideoMeta[];
 };
-
-type FileUploadClient = Parameters<typeof resolveFileOrUrl>[0];
 
 type VideoGetOptions = {
 	json: boolean;
@@ -412,7 +411,7 @@ export function register(openapi: Command) {
 				}
 
 				const client = await getOpenAPIClient();
-				const uploadClient = client as unknown as FileUploadClient;
+				const uploadClient = getOpenAPIUploadClient();
 
 				// Build content array
 				const content: OpenAPICreateVideoGenerationParams['content'] = [
