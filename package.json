@@ -1,9 +1,12 @@
 {
 	"name": "@marswave/listenhub-cli",
-	"version": "0.0.14",
+	"version": "0.0.15",
 	"description": "Command-line interface for ListenHub",
 	"license": "MIT",
-	"repository": "marswaveai/listenhub-cli",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/marswaveai/listenhub-cli.git"
+	},
 	"bin": {
 		"listenhub": "dist/cli.mjs"
 	},
