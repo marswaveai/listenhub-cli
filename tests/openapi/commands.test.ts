@@ -189,6 +189,8 @@ describe('video create', () => {
 				'Timelapse',
 				'--first-frame',
 				'https://img.example.com/frame.jpg',
+				'--first-frame-meta',
+				'1080x1920:3600000',
 				'--no-wait',
 				'--json',
 			],
@@ -205,8 +207,110 @@ describe('video create', () => {
 						role: 'first_frame',
 					},
 				],
+				referenceImages: [{role: 'first_frame', width: 1080, height: 1920, size: 3_600_000}],
 			}),
 		);
+	});
+
+	it('includes reference video metadata when provided', async () => {
+		mockClient.createVideoGeneration.mockResolvedValue({taskId: '6a201660b9fc373811288f10'});
+		vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'create',
+				'--prompt',
+				'Restyle this clip',
+				'--reference-video',
+				'https://video.example.com/ref.mp4',
+				'--reference-video-meta',
+				'1280x720:5:30:8000000',
+				'--input-video-duration',
+				'5',
+				'--no-wait',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.createVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({
+				content: [
+					{type: 'text', text: 'Restyle this clip'},
+					{
+						type: 'video_url',
+						video_url: {url: 'https://video.example.com/ref.mp4'},
+						role: 'reference_video',
+					},
+				],
+				inputVideoDuration: 5,
+				referenceVideos: [
+					{
+						role: 'reference_video',
+						width: 1280,
+						height: 720,
+						duration: 5,
+						fps: 30,
+						size: 8_000_000,
+					},
+				],
+			}),
+		);
+	});
+});
+
+describe('video estimate', () => {
+	it('passes reference metadata to estimateVideoCredits', async () => {
+		mockClient.estimateVideoCredits.mockResolvedValue({tokens: 3320, credits: 10});
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'estimate',
+				'--model',
+				'doubao-seedance-2-pro',
+				'--resolution',
+				'720p',
+				'--duration',
+				'5',
+				'--has-video-input',
+				'--input-video-duration',
+				'5',
+				'--reference-video-meta',
+				'1280x720:5:30:8000000',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.estimateVideoCredits).toHaveBeenCalledWith(
+			expect.objectContaining({
+				model: 'doubao-seedance-2-pro',
+				resolution: '720p',
+				duration: 5,
+				hasVideoInput: true,
+				inputVideoDuration: 5,
+				referenceVideos: [
+					{
+						role: 'reference_video',
+						width: 1280,
+						height: 720,
+						duration: 5,
+						fps: 30,
+						size: 8_000_000,
+					},
+				],
+			}),
+		);
+		expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({tokens: 3320, credits: 10}, null, 2));
 	});
 });
 

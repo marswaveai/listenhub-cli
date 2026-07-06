@@ -256,8 +256,11 @@ listenhub image create --prompt "inspired by this" --reference ./photo.jpg
 # OpenAPI: local image reference (base64 encoded)
 listenhub openapi image create --prompt "in this style" --reference ./sketch.png --provider google
 
-# URLs are passed through directly in both modes
-listenhub openapi video create --prompt "same style" --reference-video https://example.com/clip.mp4 --input-video-duration 5
+# Seedance video/image references need dimensions to avoid server-side 32004 validation errors
+listenhub openapi video create --prompt "same style" \
+  --reference-video https://example.com/clip.mp4 \
+  --reference-video-meta 1280x720:5:30:8000000 \
+  --input-video-duration 5
 ```
 
 ## Examples
@@ -290,7 +293,8 @@ listenhub openapi video create --prompt "A cat playing piano" --no-wait -j
 
 # With first frame
 listenhub openapi video create --prompt "Camera zooms out" \
-  --first-frame https://example.com/frame.png
+  --first-frame https://example.com/frame.png \
+  --first-frame-meta 1080x1920:3600000
 
 # Estimate credits before creating
 listenhub openapi video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10

@@ -256,8 +256,11 @@ listenhub image create --prompt "以此为灵感" --reference ./photo.jpg
 # OpenAPI：本地图片参考（base64 编码）
 listenhub openapi image create --prompt "这种风格" --reference ./sketch.png --provider google
 
-# URL 在两种模式下都直接透传
-listenhub openapi video create --prompt "同样风格" --reference-video https://example.com/clip.mp4 --input-video-duration 5
+# Seedance 图片/视频参考素材需要尺寸元数据，否则服务端会返回 32004 参数错误
+listenhub openapi video create --prompt "同样风格" \
+  --reference-video https://example.com/clip.mp4 \
+  --reference-video-meta 1280x720:5:30:8000000 \
+  --input-video-duration 5
 ```
 
 ## 使用示例
@@ -290,7 +293,8 @@ listenhub openapi video create --prompt "一只猫在弹钢琴" --no-wait -j
 
 # 指定首帧
 listenhub openapi video create --prompt "镜头缓缓拉远" \
-  --first-frame https://example.com/frame.png
+  --first-frame https://example.com/frame.png \
+  --first-frame-meta 1080x1920:3600000
 
 # 生成前预估积分
 listenhub openapi video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10

@@ -31,9 +31,23 @@ export function register(program: Command) {
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9, 4:5, 5:4')
 		.option('--duration <seconds>', 'Video duration in seconds (3-15)', Number)
 		.option('--first-frame <path-or-url>', 'First frame image')
+		.option('--first-frame-meta <meta>', 'First frame metadata WIDTHxHEIGHT[:SIZE]')
 		.option('--last-frame <path-or-url>', 'Last frame image (requires --first-frame)')
+		.option('--last-frame-meta <meta>', 'Last frame metadata WIDTHxHEIGHT[:SIZE]')
 		.option('--reference-image <path-or-url>', 'Reference image (repeatable, max 9)', collect, [])
+		.option(
+			'--reference-image-meta <meta>',
+			'Reference image metadata WIDTHxHEIGHT[:SIZE] (repeatable, same order)',
+			collect,
+			[],
+		)
 		.option('--reference-video <path-or-url>', 'Reference video (repeatable, max 3)', collect, [])
+		.option(
+			'--reference-video-meta <meta>',
+			'Reference video metadata WIDTHxHEIGHT[:DURATION[:FPS[:SIZE]]] (repeatable, same order)',
+			collect,
+			[],
+		)
 		.option('--reference-audio <path-or-url>', 'Reference audio (repeatable, max 3)', collect, [])
 		.option(
 			'--input-video-duration <seconds>',
@@ -93,6 +107,18 @@ export function register(program: Command) {
 		.option('--ratio <ratio>', 'Aspect ratio', '16:9')
 		.option('--has-video-input', 'Has reference video input', false)
 		.option('--input-video-duration <seconds>', 'Reference video duration', Number)
+		.option(
+			'--reference-image-meta <meta>',
+			'Reference image metadata WIDTHxHEIGHT[:SIZE] for estimate',
+			collect,
+			[],
+		)
+		.option(
+			'--reference-video-meta <meta>',
+			'Reference video metadata WIDTHxHEIGHT[:DURATION[:FPS[:SIZE]]] for estimate',
+			collect,
+			[],
+		)
 		.option('-j, --json', 'Output JSON', false)
 		.action(async (options: VideoEstimateOptions) => {
 			try {

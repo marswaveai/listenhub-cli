@@ -3,6 +3,7 @@ import type {
 	OpenAPICreatePixVerseVideoParams,
 	OpenAPICreateVideoGenerationParams,
 	OpenAPIEstimatePixVerseCreditsParams,
+	OpenAPIEstimateVideoCreditsParams,
 	OpenAPIPixVerseAsset,
 	OpenAPIPixVerseOptions,
 	OpenAPIVideoGenerationTaskDetail,
@@ -10,6 +11,13 @@ import type {
 } from '@marswave/listenhub-sdk';
 import {handleError, printDetail, printJson, printTable} from '../_shared/output.js';
 import {normalizeVideoTaskId} from '../_shared/video-task-id.js';
+import {
+	isSeedanceVideoModel,
+	parseImageMeta,
+	parseVideoMeta,
+	type VideoReferenceImageMeta,
+	type VideoReferenceVideoMeta,
+} from '../_shared/video-reference-metadata.js';
 import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
@@ -105,9 +113,13 @@ type PixVerseEstimateOptions = {
 type VideoCreateOptions = {
 	prompt: string;
 	firstFrame?: string;
+	firstFrameMeta?: string;
 	lastFrame?: string;
+	lastFrameMeta?: string;
 	referenceImage: string[];
+	referenceImageMeta: string[];
 	referenceVideo: string[];
+	referenceVideoMeta: string[];
 	referenceAudio: string[];
 	inputVideoDuration?: string;
 	model?: string;
@@ -119,6 +131,16 @@ type VideoCreateOptions = {
 	wait: boolean;
 	timeout: string;
 	json: boolean;
+};
+
+type OpenAPIVideoGenerationParamsWithMetadata = OpenAPICreateVideoGenerationParams & {
+	referenceImages?: VideoReferenceImageMeta[];
+	referenceVideos?: VideoReferenceVideoMeta[];
+};
+
+type OpenAPIEstimateVideoCreditsParamsWithMetadata = OpenAPIEstimateVideoCreditsParams & {
+	referenceImages?: VideoReferenceImageMeta[];
+	referenceVideos?: VideoReferenceVideoMeta[];
 };
 
 type VideoGetOptions = {
@@ -139,8 +161,73 @@ type VideoEstimateOptions = {
 	ratio?: string;
 	hasVideoInput: boolean;
 	inputVideoDuration?: string;
+	referenceImageMeta: string[];
+	referenceVideoMeta: string[];
 	json: boolean;
 };
+
+function getReferenceImages(options: VideoCreateOptions): VideoReferenceImageMeta[] {
+	const images: VideoReferenceImageMeta[] = [];
+	if (options.firstFrameMeta !== undefined) {
+		images.push(parseImageMeta(options.firstFrameMeta, 'first_frame'));
+	}
+	if (options.lastFrameMeta !== undefined) {
+		images.push(parseImageMeta(options.lastFrameMeta, 'last_frame'));
+	}
+	for (const meta of options.referenceImageMeta) {
+		images.push(parseImageMeta(meta, 'reference_image'));
+	}
+
+	return images;
+}
+
+function getReferenceVideos(options: VideoCreateOptions): VideoReferenceVideoMeta[] {
+	return options.referenceVideoMeta.map(parseVideoMeta);
+}
+
+function validateReferenceMetadata(options: VideoCreateOptions): void {
+	if (options.firstFrameMeta !== undefined && options.firstFrame === undefined) {
+		throw new Error('--first-frame-meta requires --first-frame');
+	}
+	if (options.lastFrameMeta !== undefined && options.lastFrame === undefined) {
+		throw new Error('--last-frame-meta requires --last-frame');
+	}
+	if (
+		options.referenceImageMeta.length > 0 &&
+		options.referenceImageMeta.length !== options.referenceImage.length
+	) {
+		throw new Error('--reference-image-meta count must match --reference-image count');
+	}
+	if (
+		options.referenceVideoMeta.length > 0 &&
+		options.referenceVideoMeta.length !== options.referenceVideo.length
+	) {
+		throw new Error('--reference-video-meta count must match --reference-video count');
+	}
+
+	if (!isSeedanceVideoModel(options.model, 'doubao-seedance-2-fast')) {
+		return;
+	}
+
+	if (options.firstFrame !== undefined && options.firstFrameMeta === undefined) {
+		throw new Error('Seedance --first-frame requires --first-frame-meta WIDTHxHEIGHT[:SIZE]');
+	}
+	if (options.lastFrame !== undefined && options.lastFrameMeta === undefined) {
+		throw new Error('Seedance --last-frame requires --last-frame-meta WIDTHxHEIGHT[:SIZE]');
+	}
+	if (
+		options.referenceImage.length > 0 &&
+		options.referenceImageMeta.length !== options.referenceImage.length
+	) {
+		throw new Error('Seedance --reference-image requires one --reference-image-meta per image');
+	}
+	if (
+		options.referenceVideo.length > 0 &&
+		options.referenceVideoMeta.length !== options.referenceVideo.length
+	) {
+		throw new Error('Seedance --reference-video requires one --reference-video-meta per video');
+	}
+}
 
 function printVideoDetail(result: OpenAPIVideoGenerationTaskDetail): void {
 	printDetail('Video Generation Task', [
@@ -165,7 +252,9 @@ export function register(openapi: Command) {
 		.description('Create a video generation task')
 		.requiredOption('--prompt <text>', 'Video description / prompt')
 		.option('--first-frame <url>', 'First frame image URL')
+		.option('--first-frame-meta <meta>', 'First frame metadata WIDTHxHEIGHT[:SIZE]')
 		.option('--last-frame <url>', 'Last frame image URL (requires --first-frame)')
+		.option('--last-frame-meta <meta>', 'Last frame metadata WIDTHxHEIGHT[:SIZE]')
 		.option(
 			'--reference-image <url>',
 			'Reference image URL (repeatable, max 9)',
@@ -173,8 +262,20 @@ export function register(openapi: Command) {
 			[] as string[],
 		)
 		.option(
+			'--reference-image-meta <meta>',
+			'Reference image metadata WIDTHxHEIGHT[:SIZE] (repeatable, same order)',
+			collect,
+			[] as string[],
+		)
+		.option(
 			'--reference-video <url>',
 			'Reference video URL (repeatable, max 3)',
+			collect,
+			[] as string[],
+		)
+		.option(
+			'--reference-video-meta <meta>',
+			'Reference video metadata WIDTHxHEIGHT[:DURATION[:FPS[:SIZE]]] (repeatable, same order)',
 			collect,
 			[] as string[],
 		)
@@ -203,6 +304,7 @@ export function register(openapi: Command) {
 				if (options.lastFrame && !options.firstFrame) {
 					throw new Error('--last-frame requires --first-frame');
 				}
+				validateReferenceMetadata(options);
 
 				const hasFrameMode = Boolean(options.firstFrame) || Boolean(options.lastFrame);
 				const hasReferenceMode =
@@ -298,7 +400,9 @@ export function register(openapi: Command) {
 					content.push({type: 'audio_url', audio_url: {url}, role: 'reference_audio'});
 				}
 
-				const params: OpenAPICreateVideoGenerationParams = {
+				const referenceImages = getReferenceImages(options);
+				const referenceVideos = getReferenceVideos(options);
+				const params: OpenAPIVideoGenerationParamsWithMetadata = {
 					content,
 					model: options.model as OpenAPICreateVideoGenerationParams['model'],
 					resolution: options.resolution as OpenAPICreateVideoGenerationParams['resolution'],
@@ -310,6 +414,8 @@ export function register(openapi: Command) {
 						options.inputVideoDuration === undefined
 							? undefined
 							: Number(options.inputVideoDuration),
+					...(referenceImages.length > 0 && {referenceImages}),
+					...(referenceVideos.length > 0 && {referenceVideos}),
 				};
 
 				const client = await getOpenAPIClient();
@@ -420,6 +526,18 @@ export function register(openapi: Command) {
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9')
 		.option('--has-video-input', 'Whether input video is provided', false)
 		.option('--input-video-duration <seconds>', 'Input video duration in seconds', Number)
+		.option(
+			'--reference-image-meta <meta>',
+			'Reference image metadata WIDTHxHEIGHT[:SIZE] for estimate',
+			collect,
+			[] as string[],
+		)
+		.option(
+			'--reference-video-meta <meta>',
+			'Reference video metadata WIDTHxHEIGHT[:DURATION[:FPS[:SIZE]]] for estimate',
+			collect,
+			[] as string[],
+		)
 		.option('-j, --json', 'Output JSON', false)
 		.action(async (options: VideoEstimateOptions) => {
 			try {
@@ -428,7 +546,11 @@ export function register(openapi: Command) {
 				}
 
 				const client = await getOpenAPIClient();
-				const result = await client.estimateVideoCredits({
+				const referenceImages = options.referenceImageMeta.map((meta) =>
+					parseImageMeta(meta, 'reference_image'),
+				);
+				const referenceVideos = options.referenceVideoMeta.map(parseVideoMeta);
+				const params: OpenAPIEstimateVideoCreditsParamsWithMetadata = {
 					model: options.model as OpenAPICreateVideoGenerationParams['model'] extends infer M
 						? NonNullable<M>
 						: never,
@@ -440,7 +562,10 @@ export function register(openapi: Command) {
 						options.inputVideoDuration === undefined
 							? undefined
 							: Number(options.inputVideoDuration),
-				});
+					...(referenceImages.length > 0 && {referenceImages}),
+					...(referenceVideos.length > 0 && {referenceVideos}),
+				};
+				const result = await client.estimateVideoCredits(params);
 
 				if (options.json) {
 					printJson(result);
