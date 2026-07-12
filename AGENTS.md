@@ -8,6 +8,7 @@ CLI wrapping `@marswave/listenhub-sdk`. Commander.js flat command structure.
 - Keep it simple: choose the smallest working change; avoid speculative abstractions, configurability, or broad rewrites.
 - Make surgical edits: touch only the files and lines required, follow local style, and leave unrelated cleanup alone.
 - Verify against the goal: define the relevant checks up front, run the focused validation, and keep iterating until the stated goal is satisfied.
+- Comment discipline: comment only what the code cannot say — invariants, trade-offs, external constraints, hard-won gotchas. Delete comments that restate the code or argue the change is correct. Mark deliberate simplifications with a `ponytail:` comment noting the ceiling and upgrade path.
 
 ## Structure
 
@@ -22,7 +23,8 @@ source/
 │   ├── upload.ts       # resolveFileOrUrl: local file → GCS upload → URL, or URL pass-through
 │   ├── sources.ts      # --source-url/--source-text → ContentSource[]
 │   ├── speaker-resolver.ts  # Speaker name → speakerInnerId resolution
-│   └── language.ts     # CJK/Kana detection for auto language inference
+│   ├── language.ts     # CJK/Kana detection for auto language inference
+│   └── image-dimensions / mp4-duration / video-*.ts  # media metadata helpers
 ├── auth/               # OAuth login/logout/status
 ├── podcast/            # podcast create/list
 ├── tts/                # tts create/list
@@ -30,15 +32,18 @@ source/
 ├── slides/             # slides create/list (mode fixed: 'slides', skipAudio default)
 ├── music/              # music generate/cover/list/get
 ├── image/              # image create/list/get (--reference supports local files + URLs)
+├── lyrics/             # lyrics generate/list/get
+├── video/              # video create/estimate/list/get
 ├── speakers/           # speakers list
-└── creation/           # creation get/delete
+├── creation/           # creation get/delete
+└── openapi/            # `openapi` command group: API-key–based commands (config, tts, podcast, storybook, image, video, music, content, subscription, ...)
 ```
 
 Each command module: `_cli.ts` (Commander registration) + implementation file.
 
 ## Key Patterns
 
-- Auth: OAuth only, no API key. Tokens at `$XDG_CONFIG_HOME/listenhub/credentials.json`
+- Auth: OAuth for user commands, tokens at `$XDG_CONFIG_HOME/listenhub/credentials.json`; the `openapi` command group uses `lh_sk_` API keys (`$XDG_CONFIG_HOME/listenhub/openapi.json` or env)
 - Output: `--json` for machine output, human-readable default. Errors to stderr
 - Polling: 10s interval, configurable `--timeout`. `--no-wait` skips polling
 - File upload: `resolveFileOrUrl()` auto-detects local path vs URL; validates extension/size, uploads to GCS via presigned URL, returns storage.googleapis.com URL for server re-signing
@@ -48,9 +53,10 @@ Each command module: `_cli.ts` (Commander registration) + implementation file.
 ## Build
 
 ```bash
-npm run dev     # tsc --watch
-npm run build   # tsc + chmod +x
-npm test        # xo lint
+pnpm dev     # vp pack --watch
+pnpm build   # vp pack
+pnpm test    # vp test run
+pnpm ready   # vp check && vp test run — run before PR
 ```
 
 ESM only. TypeScript strict mode via `@sindresorhus/tsconfig`.
