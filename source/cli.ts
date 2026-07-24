@@ -12,6 +12,11 @@ import {register as registerSpeakers} from './speakers/_cli.js';
 import {register as registerTts} from './tts/_cli.js';
 import {register as registerVideo} from './video/_cli.js';
 import {register as registerOpenApi} from './openapi/_cli.js';
+import {checkForUpdate} from './_shared/update-check.js';
+
+// Best-effort update notice; fully guarded and non-blocking (see update-check.ts).
+// Fire-and-forget: if the command finishes first, the check is simply dropped.
+void checkForUpdate();
 
 const program = new Command();
 program.name('listenhub').description('ListenHub CLI').version('0.1.0');
