@@ -240,6 +240,44 @@ Creation commands also support:
 - `--no-wait` — Return the ID immediately without polling
 - `--timeout <seconds>` — Polling timeout (default varies by command)
 
+## Base URL Configuration
+
+The CLI sends requests over **two separate request chains**, each with its own Base URL and override variable:
+
+| Request chain           | Commands                                                 | Default Base URL                  | Override variable       |
+| ----------------------- | -------------------------------------------------------- | --------------------------------- | ----------------------- |
+| OAuth (normal commands) | `listenhub podcast`, `tts`, `music`, `image`, `video`, … | `https://api.listenhub.ai/api`    | `LISTENHUB_API_URL`     |
+| OpenAPI Key             | `listenhub openapi …`                                    | `https://api.marswave.ai/openapi` | `LISTENHUB_OPENAPI_URL` |
+
+Each variable overrides the **entire Base URL, including the path prefix** — the normal-command URL ends in `/api`, the OpenAPI URL ends in `/openapi`. Set only the variable(s) matching the commands you actually run.
+
+### Restricted-network override
+
+If your network cannot reach the `listenhub.ai` / `marswave.ai` defaults (for example, the whole `listenhub.ai` domain is currently unreachable from mainland China), point the Base URL at a reachable host. As of 2026-07-24 the `listenhub.app` host is a verified working override:
+
+```bash
+# Normal commands (OAuth)
+export LISTENHUB_API_URL="https://api.listenhub.app/api"
+
+# OpenAPI commands
+export LISTENHUB_OPENAPI_URL="https://api.listenhub.app/openapi"
+```
+
+These variables are an **override for restricted networks, not a new default** — the shipped defaults stay on `.ai` / `marswave.ai`, and users with normal connectivity should not set them. `listenhub.app` is only the currently-verified example; if it too becomes unreachable, set the variable to any other host that serves the same API, keeping the `/api` (normal) or `/openapi` (OpenAPI) suffix intact.
+
+## Troubleshooting: `fetch failed`
+
+`TypeError: fetch failed` means the request never reached the server (a DNS / TLS / proxy / Base URL problem), so there is no HTTP status to read. It is **not** an auth error — once the server is reachable you get a structured response instead (e.g. `401`, or a business code like `21007`).
+
+Check these in order, without printing any secret:
+
+1. **Which chain failed?** A plain `listenhub …` command uses `LISTENHUB_API_URL`; a `listenhub openapi …` command uses `LISTENHUB_OPENAPI_URL`. Fix the variable that matches the failing command.
+2. **Node.js version.** Run `node -v`; the CLI needs Node.js >= 20 (native `fetch`).
+3. **Which Base URL is actually in use?** Print only the variable name and host, e.g. `echo "$LISTENHUB_API_URL"` — never echo `LISTENHUB_API_KEY`, tokens, or the full environment.
+4. **Can that host be reached?** Try a reachable override such as `https://api.listenhub.app/api` (normal) or `https://api.listenhub.app/openapi` (OpenAPI). If the default host is blocked on your network, switch to a host that is reachable, keeping the `/api` or `/openapi` suffix.
+
+Do not paste your API key, access token, or full environment variables into logs or issues while debugging — the host and the failing command are enough.
+
 ## Local File Support
 
 OAuth commands (`music cover`, `image create`, `video create`) auto-detect local paths, validate format/size, and upload to cloud storage before calling the API.
