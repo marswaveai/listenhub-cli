@@ -265,6 +265,19 @@ export LISTENHUB_OPENAPI_URL="https://api.listenhub.app/openapi"
 
 这些变量是**网络受限环境的覆盖方式，不是新默认值**——出厂默认仍是 `.ai` / `marswave.ai`，网络正常的用户不需要设置它们。`listenhub.app` 只是当前已验证的示例；若它也变得不可达，把变量改成任何一个提供同样 API 的可达主机即可，保持 `/api`（普通）或 `/openapi`（OpenAPI）后缀不变。
 
+### 钉住某个域
+
+不想每个 shell 都 export 一遍完整 URL，可以把域钉死一次——两条命令链路都覆盖，且会持久化：
+
+```bash
+listenhub config set-domain app      # 全部走 api.listenhub.app
+listenhub config set-domain default  # 强制用出厂的 .ai / marswave.ai
+listenhub config set-domain auto     # 取消钉死（默认值），交给 SDK 自己选
+listenhub config show                # 这条命令实际会打到哪个 Base URL？
+```
+
+`auto` 是开箱默认行为：SDK 先打出厂默认域，只有在**完全连不上**时才切到可达的备选域，并记住结果，之后的命令直接走那里。两点要知道：创建/生成类命令失败后**绝不会被重发到另一个域**（连接失败不能证明服务端没收到，重发可能双份扣费），所以在受限网络上第一条这类命令会失败并提示你重试——重试那次就通了；另外显式设了 `LISTENHUB_API_URL` / `LISTENHUB_OPENAPI_URL` 或钉死了域，自动切换就完全关闭。
+
 ## 排查 `fetch failed`
 
 `TypeError: fetch failed` 表示请求**根本没到达服务器**（DNS / TLS / 代理 / Base URL 问题），因此没有 HTTP 状态码可读。它**不是**鉴权错误——服务器一旦可达，你拿到的会是结构化响应（例如 `401`，或业务码 `21007`）。
@@ -273,7 +286,7 @@ export LISTENHUB_OPENAPI_URL="https://api.listenhub.app/openapi"
 
 1. **是哪条链路失败？** 普通 `listenhub …` 命令走 `LISTENHUB_API_URL`；`listenhub openapi …` 命令走 `LISTENHUB_OPENAPI_URL`。修正与失败命令匹配的那个变量。
 2. **Node.js 版本。** 运行 `node -v`；CLI 需要 Node.js >= 20（依赖原生 `fetch`）。
-3. **当前实际用的是哪个 Base URL？** 只打印变量名和主机，例如 `echo "$LISTENHUB_API_URL"`——绝不要 echo `LISTENHUB_API_KEY`、token 或完整环境变量。
+3. **当前实际用的是哪个 Base URL？** 跑 `listenhub config show`——它会打印两条链路各自生效的 Base URL、来源和 Node.js 版本，且不会打印任何 key 或 token。
 4. **那个主机能连通吗？** 试一个可达的覆盖地址，比如 `https://api.listenhub.app/api`（普通）或 `https://api.listenhub.app/openapi`（OpenAPI）。如果默认主机在你的网络被封，换成一个可达主机，保持 `/api` 或 `/openapi` 后缀不变。
 
 排查时不要把 API key、access token 或完整环境变量贴进日志或 issue——主机名和失败的命令类型就够定位了。

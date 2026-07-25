@@ -22,6 +22,7 @@ source/
 │   ├── polling.ts      # Episode + image + music polling with ora spinner
 │   ├── upload.ts       # resolveFileOrUrl: local file → GCS upload → URL, or URL pass-through
 │   ├── sources.ts      # --source-url/--source-text → ContentSource[]
+│   ├── domain.ts       # API domain choice (config.json) → explicit Base URL for the SDK
 │   ├── speaker-resolver.ts  # Speaker name → speakerInnerId resolution
 │   ├── language.ts     # CJK/Kana detection for auto language inference
 │   └── image-dimensions / mp4-duration / video-*.ts  # media metadata helpers
@@ -36,6 +37,7 @@ source/
 ├── video/              # video create/estimate/list/get
 ├── speakers/           # speakers list
 ├── creation/           # creation get/delete
+├── config/             # config set-domain/show: pin the API domain, print effective Base URLs
 └── openapi/            # `openapi` command group: API-key–based commands (config, tts, podcast, storybook, image, video, music, content, subscription, ...)
 ```
 

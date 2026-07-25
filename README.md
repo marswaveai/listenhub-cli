@@ -265,6 +265,19 @@ export LISTENHUB_OPENAPI_URL="https://api.listenhub.app/openapi"
 
 These variables are an **override for restricted networks, not a new default** — the shipped defaults stay on `.ai` / `marswave.ai`, and users with normal connectivity should not set them. `listenhub.app` is only the currently-verified example; if it too becomes unreachable, set the variable to any other host that serves the same API, keeping the `/api` (normal) or `/openapi` (OpenAPI) suffix intact.
 
+### Pinning a domain
+
+Instead of exporting a full URL in every shell, pin the domain once — it covers both command chains and persists:
+
+```bash
+listenhub config set-domain app      # use api.listenhub.app for everything
+listenhub config set-domain default  # force the shipped .ai / marswave.ai domains
+listenhub config set-domain auto     # unpin (the default): let the SDK pick
+listenhub config show                # what Base URL will this actually hit?
+```
+
+On `auto` — the out-of-the-box behaviour — the SDK sends to the shipped domain first and only switches to a reachable alternate if that domain cannot be connected to at all, remembering the result so later commands go straight there. Two things to know: a failed **create/generate** command is never re-sent to another domain (a connection failure does not prove the server never got it, and re-sending could bill you twice), so the first such command on a blocked network fails with a message telling you to retry — the retry then works. And an explicit `LISTENHUB_API_URL` / `LISTENHUB_OPENAPI_URL`, or a pinned domain, disables the automatic switching entirely.
+
 ## Troubleshooting: `fetch failed`
 
 `TypeError: fetch failed` means the request never reached the server (a DNS / TLS / proxy / Base URL problem), so there is no HTTP status to read. It is **not** an auth error — once the server is reachable you get a structured response instead (e.g. `401`, or a business code like `21007`).
@@ -273,7 +286,7 @@ Check these in order, without printing any secret:
 
 1. **Which chain failed?** A plain `listenhub …` command uses `LISTENHUB_API_URL`; a `listenhub openapi …` command uses `LISTENHUB_OPENAPI_URL`. Fix the variable that matches the failing command.
 2. **Node.js version.** Run `node -v`; the CLI needs Node.js >= 20 (native `fetch`).
-3. **Which Base URL is actually in use?** Print only the variable name and host, e.g. `echo "$LISTENHUB_API_URL"` — never echo `LISTENHUB_API_KEY`, tokens, or the full environment.
+3. **Which Base URL is actually in use?** Run `listenhub config show` — it prints the effective Base URL for both chains, where it came from, and your Node.js version, and never prints keys or tokens.
 4. **Can that host be reached?** Try a reachable override such as `https://api.listenhub.app/api` (normal) or `https://api.listenhub.app/openapi` (OpenAPI). If the default host is blocked on your network, switch to a host that is reachable, keeping the `/api` or `/openapi` suffix.
 
 Do not paste your API key, access token, or full environment variables into logs or issues while debugging — the host and the failing command are enough.

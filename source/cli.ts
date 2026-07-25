@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import {Command} from 'commander';
 import {register as registerAuth} from './auth/_cli.js';
+import {register as registerConfig} from './config/_cli.js';
 import {register as registerCreation} from './creation/_cli.js';
 import {register as registerExplainer} from './explainer/_cli.js';
 import {register as registerImage} from './image/_cli.js';
@@ -32,6 +33,7 @@ registerLyrics(program);
 registerSpeakers(program);
 registerVideo(program);
 registerCreation(program);
+registerConfig(program);
 registerOpenApi(program);
 
 program.parse();
