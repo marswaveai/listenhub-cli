@@ -39,20 +39,27 @@ describe('getOpenAPIClient', () => {
 		vi.stubEnv('LISTENHUB_API_KEY', 'lh_sk_env_secret');
 		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
 		await getOpenAPIClient();
-		expect(mockOpenAPIClient).toHaveBeenCalledWith({
-			apiKey: 'lh_sk_env_secret',
-			baseURL: 'https://api.marswave.ai/openapi',
-		});
+		expect(mockOpenAPIClient).toHaveBeenCalledWith({apiKey: 'lh_sk_env_secret'});
 	});
 
-	it('passes LISTENHUB_OPENAPI_URL to OpenAPIClient', async () => {
+	it('leaves LISTENHUB_OPENAPI_URL to the SDK instead of forwarding it', async () => {
 		vi.stubEnv('LISTENHUB_API_KEY', 'lh_sk_env_secret');
 		vi.stubEnv('LISTENHUB_OPENAPI_URL', 'https://staging.example.com/openapi');
 		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
 		await getOpenAPIClient();
+		expect(mockOpenAPIClient).toHaveBeenCalledWith({apiKey: 'lh_sk_env_secret'});
+	});
+
+	it('pins the Base URL when the user chose a domain', async () => {
+		vi.stubEnv('LISTENHUB_API_KEY', 'lh_sk_env_secret');
+		const dir = path.join(tmpDir, 'listenhub');
+		fs.mkdirSync(dir, {recursive: true});
+		fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({domain: 'app'}));
+		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
+		await getOpenAPIClient();
 		expect(mockOpenAPIClient).toHaveBeenCalledWith({
 			apiKey: 'lh_sk_env_secret',
-			baseURL: 'https://staging.example.com/openapi',
+			baseURL: 'https://api.listenhub.app/openapi',
 		});
 	});
 
@@ -66,10 +73,7 @@ describe('getOpenAPIClient', () => {
 		);
 		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
 		await getOpenAPIClient();
-		expect(mockOpenAPIClient).toHaveBeenCalledWith({
-			apiKey: 'lh_sk_file_secret',
-			baseURL: 'https://api.marswave.ai/openapi',
-		});
+		expect(mockOpenAPIClient).toHaveBeenCalledWith({apiKey: 'lh_sk_file_secret'});
 	});
 
 	it('env var takes priority over config file', async () => {
@@ -81,9 +85,6 @@ describe('getOpenAPIClient', () => {
 		});
 		const {getOpenAPIClient} = await import('../../source/openapi/client.js');
 		await getOpenAPIClient();
-		expect(mockOpenAPIClient).toHaveBeenCalledWith({
-			apiKey: 'lh_sk_env_priority',
-			baseURL: 'https://api.marswave.ai/openapi',
-		});
+		expect(mockOpenAPIClient).toHaveBeenCalledWith({apiKey: 'lh_sk_env_priority'});
 	});
 });

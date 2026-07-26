@@ -240,6 +240,57 @@ listenhub openapi subscription -j
 - `--no-wait` — 立即返回 ID，不等待完成
 - `--timeout <seconds>` — 轮询超时时间（默认值因命令而异）
 
+## Base URL 配置
+
+CLI 走**两条独立的请求链路**，各有自己的 Base URL 和覆盖变量：
+
+| 请求链路          | 命令                                                     | 默认 Base URL                     | 覆盖变量                |
+| ----------------- | -------------------------------------------------------- | --------------------------------- | ----------------------- |
+| OAuth（普通命令） | `listenhub podcast`、`tts`、`music`、`image`、`video` 等 | `https://api.listenhub.ai/api`    | `LISTENHUB_API_URL`     |
+| OpenAPI Key       | `listenhub openapi …`                                    | `https://api.marswave.ai/openapi` | `LISTENHUB_OPENAPI_URL` |
+
+每个变量覆盖的是**整个 Base URL，含路径前缀**——普通命令的 URL 以 `/api` 结尾，OpenAPI 的 URL 以 `/openapi` 结尾。只设置与你实际使用的命令匹配的那个变量即可。
+
+### 网络受限环境的覆盖
+
+如果你的网络无法访问 `listenhub.ai` / `marswave.ai` 默认地址（例如整个 `listenhub.ai` 域当前在中国大陆不可达），把 Base URL 指向一个可达的主机。截至 2026-07-24，`listenhub.app` 主机是一个已验证可用的覆盖地址：
+
+```bash
+# 普通命令（OAuth）
+export LISTENHUB_API_URL="https://api.listenhub.app/api"
+
+# OpenAPI 命令
+export LISTENHUB_OPENAPI_URL="https://api.listenhub.app/openapi"
+```
+
+这些变量是**网络受限环境的覆盖方式，不是新默认值**——出厂默认仍是 `.ai` / `marswave.ai`，网络正常的用户不需要设置它们。`listenhub.app` 只是当前已验证的示例；若它也变得不可达，把变量改成任何一个提供同样 API 的可达主机即可，保持 `/api`（普通）或 `/openapi`（OpenAPI）后缀不变。
+
+### 钉住某个域
+
+不想每个 shell 都 export 一遍完整 URL，可以把域钉死一次——两条命令链路都覆盖，且会持久化：
+
+```bash
+listenhub config set-domain app      # 全部走 api.listenhub.app
+listenhub config set-domain default  # 强制用出厂的 .ai / marswave.ai
+listenhub config set-domain auto     # 取消钉死（默认值），交给 SDK 自己选
+listenhub config show                # 这条命令实际会打到哪个 Base URL？
+```
+
+`auto` 是开箱默认行为：SDK 先打出厂默认域，只有在**完全连不上**时才切到可达的备选域，并记住结果，之后的命令直接走那里。两点要知道：创建/生成类命令失败后**绝不会被重发到另一个域**（连接失败不能证明服务端没收到，重发可能双份扣费），所以在受限网络上第一条这类命令会失败并提示你重试——重试那次就通了；另外显式设了 `LISTENHUB_API_URL` / `LISTENHUB_OPENAPI_URL` 或钉死了域，自动切换就完全关闭。
+
+## 排查 `fetch failed`
+
+`TypeError: fetch failed` 表示请求**根本没到达服务器**（DNS / TLS / 代理 / Base URL 问题），因此没有 HTTP 状态码可读。它**不是**鉴权错误——服务器一旦可达，你拿到的会是结构化响应（例如 `401`，或业务码 `21007`）。
+
+按顺序检查，过程中不要打印任何密钥：
+
+1. **是哪条链路失败？** 普通 `listenhub …` 命令走 `LISTENHUB_API_URL`；`listenhub openapi …` 命令走 `LISTENHUB_OPENAPI_URL`。修正与失败命令匹配的那个变量。
+2. **Node.js 版本。** 运行 `node -v`；CLI 需要 Node.js >= 20（依赖原生 `fetch`）。
+3. **当前实际用的是哪个 Base URL？** 跑 `listenhub config show`——它会打印两条链路各自生效的 Base URL、来源和 Node.js 版本，且不会打印任何 key 或 token。
+4. **那个主机能连通吗？** 试一个可达的覆盖地址，比如 `https://api.listenhub.app/api`（普通）或 `https://api.listenhub.app/openapi`（OpenAPI）。如果默认主机在你的网络被封，换成一个可达主机，保持 `/api` 或 `/openapi` 后缀不变。
+
+排查时不要把 API key、access token 或完整环境变量贴进日志或 issue——主机名和失败的命令类型就够定位了。
+
 ## 本地文件支持
 
 OAuth 命令（`music cover`、`image create`、`video create`）自动检测本地路径，校验格式和大小，上传到云存储后传给 API。

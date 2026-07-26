@@ -1,6 +1,13 @@
 import {ListenHubClient} from '@marswave/listenhub-sdk';
 import {loadCredentials, saveCredentials} from './credentials.js';
+import {resolveApiBaseURL} from './domain.js';
 import {CliAuthError} from './output.js';
+
+// 只在用户钉死了域时才传 baseURL。传了 SDK 就完全按它发，自动选域会被关掉。
+function clientOptions(accessToken: string): {accessToken: string; baseURL?: string} {
+	const baseURL = resolveApiBaseURL();
+	return {accessToken, ...(baseURL ? {baseURL} : {})};
+}
 
 const refreshBufferMs = 60_000;
 
@@ -17,9 +24,7 @@ async function ensureFreshCredentials(): Promise<void> {
 		return; // Still fresh
 	}
 
-	const temporaryClient = new ListenHubClient({
-		accessToken: creds.accessToken,
-	});
+	const temporaryClient = new ListenHubClient(clientOptions(creds.accessToken));
 	const tokens = await temporaryClient.refresh({
 		refreshToken: creds.refreshToken,
 	});
@@ -44,5 +49,5 @@ export async function getClient(): Promise<ListenHubClient> {
 		throw new CliAuthError('Not logged in. Run `listenhub auth login` first.');
 	}
 
-	return new ListenHubClient({accessToken: creds.accessToken});
+	return new ListenHubClient(clientOptions(creds.accessToken));
 }
