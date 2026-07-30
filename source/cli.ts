@@ -12,6 +12,7 @@ import {register as registerSlides} from './slides/_cli.js';
 import {register as registerSpeakers} from './speakers/_cli.js';
 import {register as registerTts} from './tts/_cli.js';
 import {register as registerVideo} from './video/_cli.js';
+import {register as registerVoiceClone} from './voice-clone/_cli.js';
 import {register as registerOpenApi} from './openapi/_cli.js';
 import {checkForUpdate} from './_shared/update-check.js';
 
@@ -31,6 +32,7 @@ registerImage(program);
 registerMusic(program);
 registerLyrics(program);
 registerSpeakers(program);
+registerVoiceClone(program);
 registerVideo(program);
 registerCreation(program);
 registerConfig(program);

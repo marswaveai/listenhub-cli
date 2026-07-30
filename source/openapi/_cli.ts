@@ -9,6 +9,7 @@ import {register as registerImage} from './image.js';
 import {register as registerVideo} from './video.js';
 import {register as registerMusic} from './music.js';
 import {register as registerListenHubVoice} from './listenhub-voice.js';
+import {register as registerVoiceClone} from './voice-clone.js';
 import {register as registerContent} from './content.js';
 import {register as registerSubscription} from './subscription.js';
 
@@ -24,6 +25,7 @@ export function register(program: Command) {
 	registerVideo(openapi);
 	registerMusic(openapi);
 	registerListenHubVoice(openapi);
+	registerVoiceClone(openapi);
 	registerContent(openapi);
 	registerSubscription(openapi);
 }

@@ -133,6 +133,22 @@ listenhub openapi subscription -j
 | ------------------------------- | ------------------------------ |
 | `listenhub lyrics extract <id>` | Extract lyrics from a creation |
 
+### Voice Clone
+
+Upload reference audio, poll until cloning completes, then confirm it into a reusable
+private speaker. Free within your tier quota; beyond it confirming costs 300 credits and
+requires `--use-credits`. Languages: `zh`, `en`.
+
+| Command                                     | Description                                     |
+| ------------------------------------------- | ----------------------------------------------- |
+| `listenhub voice-clone create`              | Create a clone task from 1-6 reference files    |
+| `listenhub voice-clone get <taskId>`        | Get task status                                 |
+| `listenhub voice-clone confirm`             | Confirm a completed task into a private speaker |
+| `listenhub voice-clone speakers`            | List private speakers with quota                |
+| `listenhub voice-clone speaker <speakerId>` | Get one private speaker                         |
+| `listenhub voice-clone update <speakerId>`  | Rename a speaker or change its gender           |
+| `listenhub voice-clone delete <speakerId>`  | Delete a speaker and free one slot              |
+
 ### Other
 
 | Command                             | Description             |
@@ -212,6 +228,22 @@ All commands below are under `listenhub openapi`.
 | `openapi video estimate`          | Estimate credit cost                          |
 | `openapi video pixverse generate` | Create a PixVerse video task (atomic + agent) |
 | `openapi video pixverse estimate` | Estimate PixVerse credit cost                 |
+
+### Voice Clone
+
+Same flow with an API key, plus `ja` support and `--auto-confirm` (the poll that finds the
+task completed confirms it in the same call). Every create must pass `--consent`, which
+declares you hold the cloned person's consent — the API rejects the request without it.
+
+| Command                                   | Description                                  |
+| ----------------------------------------- | -------------------------------------------- |
+| `openapi voice-clone create`              | Create a clone task; requires `--consent`    |
+| `openapi voice-clone get <taskId>`        | Get task status; auto-confirms when asked to |
+| `openapi voice-clone confirm`             | Confirm a task, prints the speaker ID        |
+| `openapi voice-clone speakers`            | List private speakers with quota             |
+| `openapi voice-clone speaker <speakerId>` | Get one private speaker                      |
+| `openapi voice-clone update <speakerId>`  | Rename a speaker or change its gender        |
+| `openapi voice-clone delete <speakerId>`  | Delete a speaker and free one slot           |
 
 ### Content
 

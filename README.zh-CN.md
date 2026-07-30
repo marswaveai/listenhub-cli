@@ -133,6 +133,21 @@ listenhub openapi subscription -j
 | ------------------------------- | ---------------- |
 | `listenhub lyrics extract <id>` | 从作品中提取歌词 |
 
+### 语音克隆
+
+上传参考音频建任务，轮询到克隆完成后确认成可反复使用的私有音色。等级配额内确认不扣积分，
+超出配额后每次扣 300 积分，且必须显式传 `--use-credits`。语言：`zh`、`en`。
+
+| 命令                                        | 说明                            |
+| ------------------------------------------- | ------------------------------- |
+| `listenhub voice-clone create`              | 用 1-6 个参考音频文件建克隆任务 |
+| `listenhub voice-clone get <taskId>`        | 查看任务状态                    |
+| `listenhub voice-clone confirm`             | 把已完成的任务确认成私有音色    |
+| `listenhub voice-clone speakers`            | 列出私有音色与配额              |
+| `listenhub voice-clone speaker <speakerId>` | 查看单个私有音色                |
+| `listenhub voice-clone update <speakerId>`  | 改音色名称或性别                |
+| `listenhub voice-clone delete <speakerId>`  | 删除音色并释放一个名额          |
+
 ### 其他
 
 | 命令                                | 说明         |
@@ -212,6 +227,21 @@ listenhub openapi subscription -j
 | `openapi video estimate`          | 预估积分消耗                               |
 | `openapi video pixverse generate` | 创建 PixVerse 视频任务（原子能力 + Agent） |
 | `openapi video pixverse estimate` | 预估 PixVerse 积分消耗                     |
+
+### 语音克隆
+
+流程与 OAuth 端相同，另外支持 `ja`，以及 `--auto-confirm`（发现任务完成的那次轮询直接确认）。
+每次创建都必须带 `--consent`，即声明已获得被克隆者授权——不带这个参数服务端会拒绝。
+
+| 命令                                      | 说明                           |
+| ----------------------------------------- | ------------------------------ |
+| `openapi voice-clone create`              | 建克隆任务，必须带 `--consent` |
+| `openapi voice-clone get <taskId>`        | 查看任务；按需在轮询里自动确认 |
+| `openapi voice-clone confirm`             | 确认任务并打印 speaker ID      |
+| `openapi voice-clone speakers`            | 列出私有音色与配额             |
+| `openapi voice-clone speaker <speakerId>` | 查看单个私有音色               |
+| `openapi voice-clone update <speakerId>`  | 改音色名称或性别               |
+| `openapi voice-clone delete <speakerId>`  | 删除音色并释放一个名额         |
 
 ### 内容提取
 

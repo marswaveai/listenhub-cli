@@ -19,7 +19,8 @@ source/
 │   ├── client.ts       # Authenticated client factory (auto-refresh, single-flight)
 │   ├── credentials.ts  # Token storage (~/.config/listenhub/, atomic write, 0600)
 │   ├── output.ts       # Print helpers, error handling, exit codes
-│   ├── polling.ts      # Episode + image + music polling with ora spinner
+│   ├── polling.ts      # Episode + image + music polling, plus the generic pollTask both command groups use
+│   ├── reference-audio.ts  # Local audio files → Blob[] for voice-clone multipart uploads
 │   ├── upload.ts       # resolveFileOrUrl: local file → GCS upload → URL, or URL pass-through
 │   ├── sources.ts      # --source-url/--source-text → ContentSource[]
 │   ├── domain.ts       # API domain choice (config.json) → explicit Base URL for the SDK
@@ -36,9 +37,10 @@ source/
 ├── lyrics/             # lyrics generate/list/get
 ├── video/              # video create/estimate/list/get
 ├── speakers/           # speakers list
+├── voice-clone/        # voice-clone create/get/confirm/speakers/speaker/update/delete (upload mode only)
 ├── creation/           # creation get/delete
 ├── config/             # config set-domain/show: pin the API domain, print effective Base URLs
-└── openapi/            # `openapi` command group: API-key–based commands (config, tts, podcast, storybook, image, video, music, content, subscription, ...)
+└── openapi/            # `openapi` command group: API-key–based commands (config, tts, podcast, storybook, image, video, music, voice-clone, content, subscription, ...)
 ```
 
 Each command module: `_cli.ts` (Commander registration) + implementation file.
