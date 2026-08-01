@@ -62,7 +62,10 @@ export function register(openapi: Command) {
 		.command('create')
 		.description('Create a voice clone task from reference audio')
 		.requiredOption('--file <path...>', 'Reference audio file (1-6 files)')
-		.requiredOption('--lang <lang>', 'Language of the audio: zh, en, ja')
+		.requiredOption(
+			'--lang <lang>',
+			'Language of the audio: en, zh, ja, es, pt, fr, de, tr, ko, it, th, vi',
+		)
 		.option(
 			'--consent',
 			'Declare that you hold the cloned person’s consent (required by the API)',

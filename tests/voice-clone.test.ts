@@ -48,6 +48,15 @@ afterEach(async () => {
 });
 
 describe('voice-clone create', () => {
+	it('lists every supported language in --help', () => {
+		const parent = makeParent();
+		registerVoiceClone(parent);
+		const create = parent.commands[0]!.commands[0]!;
+		const help = create.helpInformation().replaceAll(/\s+/g, ' ');
+
+		expect(help).toContain('en, zh, ja, es, pt, fr, de, tr, ko, it, th, vi');
+	});
+
 	it('sends every reference file with the language and skips polling with --no-wait', async () => {
 		mockClient.createVoiceClone.mockResolvedValue({taskId: 'task-1', status: 'pending'});
 		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
