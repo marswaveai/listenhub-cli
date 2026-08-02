@@ -48,6 +48,15 @@ afterEach(async () => {
 });
 
 describe('openapi voice-clone create', () => {
+	it('lists every supported language in --help', () => {
+		const parent = makeParent();
+		registerVoiceClone(parent);
+		const create = parent.commands[0]!.commands[0]!;
+		const help = create.helpInformation().replaceAll(/\s+/g, ' ');
+
+		expect(help).toContain('en, zh, ja, es, pt, fr, de, tr, ko, it, th, vi');
+	});
+
 	it('requires an explicit consent declaration before any request', async () => {
 		const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 		const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
