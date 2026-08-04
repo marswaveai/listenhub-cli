@@ -40,6 +40,9 @@ listenhub music generate --prompt "轻松的lo-fi节拍" --style "lo-fi" --title
 # 语音合成
 listenhub tts create --text "你好世界" --lang zh
 
+# 以 1.25 倍语速生成（--speed 取值 0.5-2.0，最多两位小数）
+listenhub tts create --text "你好世界" --lang zh --speed 1.25
+
 # AI 生图
 listenhub image create --prompt "水彩风格的小龙" --reference ./sketch.png
 ```

@@ -6,6 +6,7 @@ import type {ReadableStream as NodeReadableStream} from 'node:stream/web';
 import type {Command} from 'commander';
 import type {OpenAPIClient} from '@marswave/listenhub-sdk';
 import {handleError, printJson} from '../_shared/output.js';
+import {SPEED_FLAG_DESCRIPTION, parseSpeed} from '../_shared/speed.js';
 import {getOpenAPIClient} from './client.js';
 
 type TtsOptions = {
@@ -13,11 +14,13 @@ type TtsOptions = {
 	voice: string;
 	output: string;
 	format: string;
+	speed?: number;
 };
 
 type SpeechOptions = {
 	script: string;
 	speakerId: string;
+	speed?: number;
 	json: boolean;
 };
 
@@ -40,6 +43,7 @@ async function runTts(client: OpenAPIClient, options: TtsOptions): Promise<void>
 		input: options.text,
 		voice: options.voice,
 		response_format: options.format as 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm' | undefined,
+		speed: options.speed,
 	});
 	await saveStreamingAudio(response, options.output);
 }
@@ -49,6 +53,7 @@ async function runAudioSpeech(client: OpenAPIClient, options: TtsOptions): Promi
 		input: options.text,
 		voice: options.voice,
 		response_format: options.format as 'mp3' | 'opus' | 'aac' | 'flac' | 'wav' | 'pcm' | undefined,
+		speed: options.speed,
 	});
 	await saveStreamingAudio(response, options.output);
 }
@@ -56,6 +61,7 @@ async function runAudioSpeech(client: OpenAPIClient, options: TtsOptions): Promi
 async function runSpeech(client: OpenAPIClient, options: SpeechOptions): Promise<void> {
 	const result = await client.speech({
 		scripts: [{content: options.script, speakerId: options.speakerId}],
+		speed: options.speed,
 	});
 
 	if (options.json) {
@@ -86,6 +92,7 @@ export function register(openapi: Command) {
 		.requiredOption('--voice <speakerId>', 'Speaker ID')
 		.requiredOption('--output <file>', 'Output file path')
 		.option('--format <format>', 'Audio format: mp3, opus, aac, flac, wav, pcm', 'mp3')
+		.option('--speed <multiplier>', SPEED_FLAG_DESCRIPTION, parseSpeed)
 		.action(async (options: TtsOptions) => {
 			try {
 				const client = await getOpenAPIClient();
@@ -102,6 +109,7 @@ export function register(openapi: Command) {
 		.requiredOption('--voice <speakerId>', 'Speaker ID')
 		.requiredOption('--output <file>', 'Output file path')
 		.option('--format <format>', 'Audio format: mp3, opus, aac, flac, wav, pcm', 'mp3')
+		.option('--speed <multiplier>', SPEED_FLAG_DESCRIPTION, parseSpeed)
 		.action(async (options: TtsOptions) => {
 			try {
 				const client = await getOpenAPIClient();
@@ -116,6 +124,7 @@ export function register(openapi: Command) {
 		.description('Create speech (returns audio URL)')
 		.requiredOption('--script <content>', 'Script text')
 		.requiredOption('--speaker-id <id>', 'Speaker ID')
+		.option('--speed <multiplier>', SPEED_FLAG_DESCRIPTION, parseSpeed)
 		.option('-j, --json', 'Output JSON', false)
 		.action(async (options: SpeechOptions) => {
 			try {

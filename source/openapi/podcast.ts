@@ -1,6 +1,7 @@
 import type {Command} from 'commander';
 import type {OpenAPIPodcastDetail} from '@marswave/listenhub-sdk';
 import {handleError, printJson, printDetail} from '../_shared/output.js';
+import {SPEED_FLAG_DESCRIPTION, parseSpeed} from '../_shared/speed.js';
 import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
@@ -15,6 +16,7 @@ type CreateOptions = {
 	speakerId: string[];
 	mode?: string;
 	lang?: string;
+	speed?: number;
 	wait: boolean;
 	timeout: number;
 	json: boolean;
@@ -36,6 +38,7 @@ type TextContentOptions = {
 };
 
 type GenerateAudioOptions = {
+	speed?: number;
 	wait: boolean;
 	timeout: number;
 	json: boolean;
@@ -75,6 +78,7 @@ export function register(openapi: Command) {
 		)
 		.option('--mode <mode>', 'Generation mode')
 		.option('--lang <lang>', 'Language code')
+		.option('--speed <multiplier>', SPEED_FLAG_DESCRIPTION, parseSpeed)
 		.option('--no-wait', 'Do not wait for completion')
 		.option('--timeout <seconds>', 'Polling timeout in seconds', '300')
 		.option('-j, --json', 'Output JSON', false)
@@ -100,6 +104,7 @@ export function register(openapi: Command) {
 					speakers,
 					mode: options.mode,
 					language: options.lang,
+					speed: options.speed,
 				});
 
 				if (!options.wait) {
@@ -234,13 +239,17 @@ export function register(openapi: Command) {
 	podcast
 		.command('generate-audio <episodeId>')
 		.description('Generate audio for an existing podcast text episode')
+		.option('--speed <multiplier>', SPEED_FLAG_DESCRIPTION, parseSpeed)
 		.option('--no-wait', 'Do not wait for completion')
 		.option('--timeout <seconds>', 'Polling timeout in seconds', '300')
 		.option('-j, --json', 'Output JSON', false)
 		.action(async (episodeId: string, options: GenerateAudioOptions) => {
 			try {
 				const client = await getOpenAPIClient();
-				await client.generatePodcastAudio(episodeId);
+				await client.generatePodcastAudio(
+					episodeId,
+					options.speed === undefined ? undefined : {speed: options.speed},
+				);
 
 				if (!options.wait) {
 					if (options.json) {

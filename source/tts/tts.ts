@@ -13,6 +13,7 @@ export type TtsCreateOptions = {
 	lang?: Language;
 	speaker?: string;
 	speakerId?: string;
+	speed?: number;
 	wait: boolean;
 	timeout: number;
 	json: boolean;
@@ -39,6 +40,7 @@ export async function createTts(client: ListenHubClient, options: TtsCreateOptio
 			speakers,
 			language: lang,
 		},
+		speed: options.speed,
 	});
 
 	if (!options.wait) {
