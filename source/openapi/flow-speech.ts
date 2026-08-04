@@ -1,6 +1,7 @@
 import type {Command} from 'commander';
 import type {OpenAPIFlowSpeechDetail} from '@marswave/listenhub-sdk';
 import {handleError, printJson, printDetail} from '../_shared/output.js';
+import {SPEED_FLAG_DESCRIPTION, parseSpeed} from '../_shared/speed.js';
 import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
@@ -14,6 +15,7 @@ type CreateOptions = {
 	speakerId: string[];
 	mode: string;
 	lang?: string;
+	speed?: number;
 	wait: boolean;
 	timeout: number;
 	json: boolean;
@@ -27,6 +29,7 @@ type TtsOptions = {
 	script: string[];
 	speakerId: string[];
 	title?: string;
+	speed?: number;
 	wait: boolean;
 	timeout: number;
 	json: boolean;
@@ -64,6 +67,7 @@ export function register(openapi: Command) {
 		)
 		.option('--mode <mode>', 'Generation mode: smart, direct', 'smart')
 		.option('--lang <lang>', 'Language code')
+		.option('--speed <multiplier>', SPEED_FLAG_DESCRIPTION, parseSpeed)
 		.option('--no-wait', 'Do not wait for completion')
 		.option('--timeout <seconds>', 'Polling timeout in seconds', '300')
 		.option('-j, --json', 'Output JSON', false)
@@ -93,6 +97,7 @@ export function register(openapi: Command) {
 					speakers,
 					mode: options.mode as 'smart' | 'direct',
 					language: options.lang,
+					speed: options.speed,
 				});
 
 				if (!options.wait) {
@@ -162,6 +167,7 @@ export function register(openapi: Command) {
 			[] as string[],
 		)
 		.option('--title <title>', 'Episode title')
+		.option('--speed <multiplier>', SPEED_FLAG_DESCRIPTION, parseSpeed)
 		.option('--no-wait', 'Do not wait for completion')
 		.option('--timeout <seconds>', 'Polling timeout in seconds', '300')
 		.option('-j, --json', 'Output JSON', false)
@@ -187,6 +193,7 @@ export function register(openapi: Command) {
 				const {episodeId} = await client.createFlowSpeechTTS({
 					scripts,
 					title: options.title,
+					speed: options.speed,
 				});
 
 				if (!options.wait) {

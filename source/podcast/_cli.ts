@@ -1,6 +1,7 @@
 import type {Command} from 'commander';
 import {getClient} from '../_shared/client.js';
 import {handleError} from '../_shared/output.js';
+import {SPEED_FLAG_DESCRIPTION, parseSpeed} from '../_shared/speed.js';
 import {
 	type PodcastCreateOptions,
 	type PodcastListOptions,
@@ -25,6 +26,7 @@ export function register(program: Command) {
 		.option('--lang <lang>', 'Language: en, zh, ja (auto-detected if omitted)')
 		.option('--speaker <name>', 'Speaker name (repeatable)', collect, [])
 		.option('--speaker-id <id>', 'Speaker inner ID (repeatable)', collect, [])
+		.option('--speed <multiplier>', SPEED_FLAG_DESCRIPTION, parseSpeed)
 		.option('--no-wait', 'Return immediately without polling')
 		.option('--timeout <seconds>', 'Polling timeout', Number, 300)
 		.option('-j, --json', 'Output JSON', false)

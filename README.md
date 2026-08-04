@@ -40,6 +40,9 @@ listenhub music generate --prompt "Chill lo-fi beats" --style "lo-fi" --title "S
 # Text-to-speech
 listenhub tts create --text "Hello, world" --lang en
 
+# Text-to-speech at 1.25x generation speed (--speed accepts 0.5-2.0, max two decimals)
+listenhub tts create --text "Hello, world" --lang en --speed 1.25
+
 # Generate an AI image
 listenhub image create --prompt "a dragon in watercolor style" --reference ./sketch.png
 ```
