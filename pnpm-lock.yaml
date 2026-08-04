@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@marswave/listenhub-sdk':
-        specifier: ^0.0.20
-        version: 0.0.20
+        specifier: ^0.0.21
+        version: 0.0.21
       commander:
         specifier: ^14.0.3
         version: 14.0.3
@@ -57,8 +57,8 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
-  '@marswave/listenhub-sdk@0.0.20':
-    resolution: {integrity: sha512-ZKR0VnGBd7BkXs9CiW6VwXWSGPun8oskAnNK+j6j8YyFhZGNQSI0D5a1AATXNzZN8koWgKv9c5BzoyITdKXicg==}
+  '@marswave/listenhub-sdk@0.0.21':
+    resolution: {integrity: sha512-vg6Ss7WhXoVzaTPqcHS/+sHw6G6btbXVzKRPJnBDWRC0eWxhhuJzV+oqQmhErn+Uv+B3W/P4qBSHl5Q1ItYe0g==}
     engines: {node: '>=20'}
 
   '@napi-rs/wasm-runtime@1.1.4':
@@ -1118,7 +1118,7 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
-  '@marswave/listenhub-sdk@0.0.20':
+  '@marswave/listenhub-sdk@0.0.21':
     dependencies:
       ky: 1.14.3
 
