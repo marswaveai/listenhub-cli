@@ -266,9 +266,13 @@ function validateCreateOptions(options: VideoCreateOptions): void {
 	}
 }
 
+/** 两条视频路由共用同一份 schema 与参数构造，只有打哪个前缀不同。 */
+export type VideoSurface = 'listenhub' | 'labnana';
+
 export async function createVideo(
 	client: ListenHubClient,
 	options: VideoCreateOptions,
+	surface: VideoSurface = 'listenhub',
 ): Promise<void> {
 	if (options.referenceVideo.length > 0 && options.inputVideoDuration === undefined) {
 		const localVideo = options.referenceVideo.find(
@@ -340,7 +344,10 @@ export async function createVideo(
 		...(referenceVideos.length > 0 && {referenceVideos}),
 	};
 
-	const {taskId: rawTaskId} = await client.createVideoGeneration(params);
+	const {taskId: rawTaskId} =
+		surface === 'labnana'
+			? await client.createBananaVideoGeneration(params)
+			: await client.createVideoGeneration(params);
 	const taskId = normalizeVideoTaskId(rawTaskId);
 
 	if (!options.wait) {
@@ -356,6 +363,9 @@ export async function createVideo(
 	const task = await pollVideoTaskUntilDone(client, taskId, {
 		timeout: options.timeout,
 		json: options.json,
+		...(surface === 'labnana' && {
+			getTask: async (id: string) => client.getBananaVideoGenerationTask(id),
+		}),
 	});
 
 	if (options.json) {

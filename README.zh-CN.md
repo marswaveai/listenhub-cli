@@ -121,6 +121,23 @@ listenhub openapi subscription -j
 | `listenhub image get <id>`       | 查看图片详情       |
 | `listenhub image delete <id...>` | 删除一个或多个图片 |
 
+### Labnana
+
+`listenhub image` 打的是 ListenHub 的 `/v1/images`，`listenhub labnana image` 打的是
+Labnana 的 `/v1/banana/images`。同一个后端的两条路由：Labnana 侧参考图上限 14（vs 5），
+并多出 `--quality` 与 `--public`。按「结果要出现在哪个产品里」选命令组。
+
+`-n` 是**客户端扇出**：后端没有张数入参，`-n 3` 就是发 3 个并行请求、共享同一个
+`batchId`——网页端也是这么做的，Featured/Trending 据此折叠成一组。撞限流的分片会被报出
+并让命令以非零码退出，已成功的 id 仍会打印。
+
+| 命令                               | 说明                             |
+| ---------------------------------- | -------------------------------- |
+| `listenhub labnana image create`   | 生成 Labnana 图片（`-n` 出多张） |
+| `listenhub labnana image list`     | 列出 Labnana 图片                |
+| `listenhub labnana image get <id>` | 查看 Labnana 图片详情            |
+| `listenhub labnana video create`   | 创建 Labnana 视频生成任务        |
+
 ### 视频生成
 
 | 命令                       | 说明             |

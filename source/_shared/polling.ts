@@ -1,5 +1,6 @@
 import type {
 	AIImageItem,
+	BananaImageItem,
 	EpisodeDetail,
 	ListenHubClient,
 	LyricsTaskDetail,
@@ -66,6 +67,21 @@ export async function pollTask<T>(config: PollConfig<T>): Promise<T> {
 
 	spinner?.fail('Timed out');
 	throw new CliTimeoutError(`Timed out after ${timeoutS}s`);
+}
+
+/** Labnana 图片轮询：与 ListenHub 图片同一套状态机，只是读的是 banana 路由。 */
+export async function pollBananaImageUntilDone(
+	client: ListenHubClient,
+	imageId: string,
+	options: {timeout?: number; json?: boolean},
+): Promise<BananaImageItem> {
+	return pollTask<BananaImageItem>({
+		getStatus: async () => client.getBananaImage(imageId),
+		isDone: (item) => item.status === 'success',
+		isFailed: (item) => item.status === 'fail',
+		getErrorMessage: () => 'Image creation failed',
+		options: {timeout: options.timeout ?? 120, label: 'Creating image', json: options.json},
+	});
 }
 
 export async function pollUntilDone(
@@ -181,8 +197,14 @@ export async function pollMusicTaskUntilDone(
 export async function pollVideoTaskUntilDone(
 	client: ListenHubClient,
 	taskId: string,
-	options: {timeout?: number; json?: boolean},
+	options: {
+		timeout?: number;
+		json?: boolean;
+		/** Labnana 视频任务读的是 /banana 前缀的路由，其余状态机完全一致。 */
+		getTask?: (taskId: string) => Promise<VideoGenerationTaskDetail>;
+	},
 ): Promise<VideoGenerationTaskDetail> {
+	const getTask = options.getTask ?? (async (id: string) => client.getVideoGenerationTask(id));
 	const timeoutS = options.timeout ?? 1200;
 	const maxAttempts = Math.ceil(timeoutS / (pollIntervalMs / 1000));
 	const spinner = options.json
@@ -194,7 +216,7 @@ export async function pollVideoTaskUntilDone(
 			await sleep(pollIntervalMs); // eslint-disable-line no-await-in-loop
 		}
 
-		const task = await client.getVideoGenerationTask(taskId); // eslint-disable-line no-await-in-loop
+		const task = await getTask(taskId); // eslint-disable-line no-await-in-loop
 		if (task.status === 'success') {
 			spinner?.succeed('Video created successfully');
 			return task;

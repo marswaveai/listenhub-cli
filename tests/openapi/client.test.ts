@@ -4,7 +4,10 @@ import path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mockOpenAPIClient = vi.fn();
-vi.mock('@marswave/listenhub-sdk', () => ({
+// 只替换 OpenAPIClient，其余导出（如 domain.ts 读的 DOMAIN_BASE_URLS）保留真值，
+// 否则新增一个 SDK 导入就会把这个 mock 变成隐形的 undefined 陷阱。
+vi.mock('@marswave/listenhub-sdk', async (importOriginal) => ({
+	...(await importOriginal<typeof import('@marswave/listenhub-sdk')>()),
 	OpenAPIClient: mockOpenAPIClient,
 }));
 

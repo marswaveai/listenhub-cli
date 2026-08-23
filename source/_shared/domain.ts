@@ -2,25 +2,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
+import {DOMAIN_BASE_URLS, type DomainAlias} from '@marswave/listenhub-sdk';
 
 /**
  * `auto` 交给 SDK 自己选域（默认域连不上时自动切备选域并落盘）；`app` / `default`
  * 是用户钉死的选择，会被翻译成显式 Base URL 传给 SDK，SDK 就不再自动切换。
  */
-export type DomainChoice = 'app' | 'default' | 'auto';
-
-// ponytail: 这张表和 SDK src/domain-selection.ts 的候选域表重复，换域时两边一起改。
-// 升级路径：SDK 发版后改为从 SDK 导出的映射读取。
-const BASE_URLS: Record<Exclude<DomainChoice, 'auto'>, {api: string; openapi: string}> = {
-	app: {
-		api: 'https://api.listenhub.app/api',
-		openapi: 'https://api.listenhub.app/openapi',
-	},
-	default: {
-		api: 'https://api.listenhub.ai/api',
-		openapi: 'https://api.marswave.ai/openapi',
-	},
-};
+export type DomainChoice = DomainAlias | 'auto';
 
 export const DOMAIN_CHOICES: DomainChoice[] = ['app', 'default', 'auto'];
 
@@ -87,12 +75,12 @@ export function saveDomainChoice(choice: DomainChoice): void {
  */
 export function resolveApiBaseURL(): string | undefined {
 	const choice = loadDomainChoice();
-	return choice === 'auto' ? undefined : BASE_URLS[choice].api;
+	return choice === 'auto' ? undefined : DOMAIN_BASE_URLS[choice].api;
 }
 
 export function resolveOpenAPIBaseURL(): string | undefined {
 	const choice = loadDomainChoice();
-	return choice === 'auto' ? undefined : BASE_URLS[choice].openapi;
+	return choice === 'auto' ? undefined : DOMAIN_BASE_URLS[choice].openapi;
 }
 
 export interface EffectiveBaseURL {
@@ -126,13 +114,13 @@ export function effectiveBaseURLs(): {api: EffectiveBaseURL; openapi: EffectiveB
 		api: resolveEffective(
 			process.env['LISTENHUB_API_URL'],
 			resolveApiBaseURL(),
-			BASE_URLS.default.api,
+			DOMAIN_BASE_URLS.default.api,
 			discovered,
 		),
 		openapi: resolveEffective(
 			process.env['LISTENHUB_OPENAPI_URL'],
 			resolveOpenAPIBaseURL(),
-			BASE_URLS.default.openapi,
+			DOMAIN_BASE_URLS.default.openapi,
 			discovered,
 		),
 	};
