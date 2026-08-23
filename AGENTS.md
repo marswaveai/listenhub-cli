@@ -34,6 +34,7 @@ source/
 ├── slides/             # slides create/list (mode fixed: 'slides', skipAudio default)
 ├── music/              # music generate/cover/list/get
 ├── image/              # image create/list/get (--reference supports local files + URLs)
+├── labnana/            # labnana image create/list/get + video create (/v1/banana/* routes, -n = client-side fan-out sharing one batchId)
 ├── lyrics/             # lyrics generate/list/get
 ├── video/              # video create/estimate/list/get
 ├── speakers/           # speakers list

@@ -121,6 +121,25 @@ listenhub openapi subscription -j
 | `listenhub image get <id>`       | Get image details            |
 | `listenhub image delete <id...>` | Delete one or more AI images |
 
+### Labnana
+
+`listenhub image` posts to ListenHub's `/v1/images`; `listenhub labnana image` posts to
+Labnana's `/v1/banana/images`. Same backend, different routes: Labnana takes up to 14
+reference images (vs 5) and adds `--quality` and `--public`. Pick the group that matches
+the product you want the result to show up in.
+
+`-n` is a **client-side fan-out**: the backend has no "count" input, so `-n 3` sends three
+parallel requests sharing one `batchId`, which is exactly what the web app does and what
+Featured/Trending group on. Shards that hit the rate limit are reported and make the
+command exit non-zero — successful ids are still printed.
+
+| Command                            | Description                                  |
+| ---------------------------------- | -------------------------------------------- |
+| `listenhub labnana image create`   | Generate Labnana image(s) (`-n` for a batch) |
+| `listenhub labnana image list`     | List Labnana images                          |
+| `listenhub labnana image get <id>` | Get Labnana image details                    |
+| `listenhub labnana video create`   | Create a Labnana video generation task       |
+
 ### Video Generation
 
 | Command                    | Description                    |

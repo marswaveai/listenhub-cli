@@ -16,7 +16,6 @@ export type ImageCreateOptions = {
 	aspectRatio: AIImageAspectRatio;
 	size: AIImageSize;
 	reference: string[];
-	referenceUrl: string[];
 	wait: boolean;
 	timeout: number;
 	json: boolean;
@@ -26,7 +25,7 @@ export async function createImage(
 	client: ListenHubClient,
 	options: ImageCreateOptions,
 ): Promise<void> {
-	const allReferences = [...options.reference, ...options.referenceUrl];
+	const allReferences = options.reference;
 
 	if (allReferences.length > 5) {
 		throw new Error('Too many reference images (max 5)');
