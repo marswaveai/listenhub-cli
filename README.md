@@ -411,6 +411,14 @@ listenhub openapi video create --prompt "Camera zooms out" \
 
 # Estimate credits before creating
 listenhub openapi video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10
+
+# MiniMax H3: 768p / 2k only, 4-15s. It ignores --seed and --no-generate-audio.
+listenhub openapi video create --prompt "A golden retriever on a sunny beach" \
+  --model MiniMax-H3 --resolution 768p --duration 4
+
+# Wan 3.0 goes up to 30s
+listenhub openapi video create --prompt "Slow pan over a mountain range" \
+  --model wan3.0-video --resolution 1080p --duration 30
 ```
 
 ### OpenAPI: PixVerse video generation
