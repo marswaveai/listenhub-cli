@@ -22,6 +22,7 @@ import {
 	type VideoReferenceImageMeta,
 	type VideoReferenceVideoMeta,
 } from '../_shared/video-reference-metadata.js';
+import {videoModelLimits} from '../_shared/video-model-limits.js';
 
 export type VideoCreateOptions = {
 	prompt: string;
@@ -182,15 +183,20 @@ function validateReferenceMetadata(options: VideoCreateOptions): void {
 }
 
 function validateCreateOptions(options: VideoCreateOptions): void {
-	if (options.duration !== undefined && (options.duration < 3 || options.duration > 15)) {
-		throw new Error('Duration must be between 3 and 15 seconds');
+	const limits = videoModelLimits(options.model, 'happyhorse');
+
+	if (options.duration !== undefined) {
+		const {min, max} = limits.duration;
+		if (options.duration < min || options.duration > max) {
+			throw new Error(`Duration must be between ${min} and ${max} seconds`);
+		}
 	}
 
 	if (options.seed !== undefined && (options.seed < -1 || options.seed > 4_294_967_295)) {
 		throw new Error('Seed must be between -1 and 4294967295');
 	}
 
-	if (options.lastFrame && !options.firstFrame) {
+	if (options.lastFrame && !options.firstFrame && limits.lastFrameRequiresFirstFrame) {
 		throw new Error('--last-frame requires --first-frame');
 	}
 	validateReferenceMetadata(options);
@@ -220,31 +226,32 @@ function validateCreateOptions(options: VideoCreateOptions): void {
 		throw new Error('--input-video-duration requires --reference-video');
 	}
 
-	if (
-		options.inputVideoDuration !== undefined &&
-		(options.inputVideoDuration < 2 || options.inputVideoDuration > 15)
-	) {
-		throw new Error('Input video duration must be between 2 and 15 seconds');
+	if (options.inputVideoDuration !== undefined) {
+		const {min, max} = limits.inputVideoDuration;
+		if (options.inputVideoDuration < min || options.inputVideoDuration > max) {
+			throw new Error(`Input video duration must be between ${min} and ${max} seconds`);
+		}
 	}
 
 	if (
 		options.referenceAudio.length > 0 &&
 		options.referenceImage.length === 0 &&
-		options.referenceVideo.length === 0
+		options.referenceVideo.length === 0 &&
+		limits.referenceAudioRequiresVisual
 	) {
 		throw new Error('--reference-audio requires --reference-image or --reference-video');
 	}
 
-	if (options.referenceImage.length > 9) {
-		throw new Error('Too many reference images (max 9)');
+	if (options.referenceImage.length > limits.referenceImageMax) {
+		throw new Error(`Too many reference images (max ${limits.referenceImageMax})`);
 	}
 
-	if (options.referenceVideo.length > 3) {
-		throw new Error('Too many reference videos (max 3)');
+	if (options.referenceVideo.length > limits.referenceVideoMax) {
+		throw new Error(`Too many reference videos (max ${limits.referenceVideoMax})`);
 	}
 
-	if (options.referenceAudio.length > 3) {
-		throw new Error('Too many reference audios (max 3)');
+	if (options.referenceAudio.length > limits.referenceAudioMax) {
+		throw new Error(`Too many reference audios (max ${limits.referenceAudioMax})`);
 	}
 
 	for (const file of options.referenceAudio) {

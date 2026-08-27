@@ -409,6 +409,119 @@ describe('video estimate', () => {
 		);
 		expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({tokens: 3320, credits: 10}, null, 2));
 	});
+
+	it.each(['768p', '2k'])('accepts MiniMax-H3 at %s', async (resolution) => {
+		mockClient.estimateVideoCredits.mockResolvedValue({tokens: 4000, credits: 38});
+		vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync(
+			[
+				'video',
+				'estimate',
+				'--model',
+				'MiniMax-H3',
+				'--resolution',
+				resolution,
+				'--duration',
+				'4',
+				'--json',
+			],
+			{from: 'user'},
+		);
+
+		expect(mockClient.estimateVideoCredits).toHaveBeenCalledWith(
+			expect.objectContaining({model: 'MiniMax-H3', resolution, duration: 4}),
+		);
+	});
+});
+
+// 客户端的时长/条数护栏原本是一套写死的数字（4-15 秒、9 张图），新模型一上来就被
+// 本地拦掉——服务端明明接受。这些用例钉住护栏按模型取值。
+describe('video create per-model limits', () => {
+	const createArgs = (extra: string[]) => [
+		'video',
+		'create',
+		'--prompt',
+		'a cat dancing',
+		'--no-wait',
+		'--json',
+		...extra,
+	];
+
+	async function run(extra: string[]) {
+		const parent = makeParent();
+		registerVideo(parent);
+		await parent.parseAsync(createArgs(extra), {from: 'user'});
+	}
+
+	beforeEach(() => {
+		mockClient.createVideoGeneration.mockResolvedValue({taskId: '6a2016607ebd26d050c585ca'});
+		vi.spyOn(console, 'log').mockImplementation(() => undefined);
+	});
+
+	it('accepts a 30s Wan 3.0 clip that the old flat 4-15 guard rejected', async () => {
+		await run(['--model', 'wan3.0-video', '--duration', '30']);
+		expect(mockClient.createVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({model: 'wan3.0-video', duration: 30}),
+		);
+	});
+
+	it('accepts MiniMax-H3 at 768p / 15s', async () => {
+		await run(['--model', 'MiniMax-H3', '--resolution', '768p', '--duration', '15']);
+		expect(mockClient.createVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({model: 'MiniMax-H3', resolution: '768p', duration: 15}),
+		);
+	});
+
+	it('still rejects a 16s MiniMax-H3 clip', async () => {
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+		const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+		await run(['--model', 'MiniMax-H3', '--duration', '16']);
+
+		expect(mockClient.createVideoGeneration).not.toHaveBeenCalled();
+		expect(errSpy.mock.calls.flat().join(' ')).toContain('between 4 and 15 seconds');
+		exitSpy.mockRestore();
+	});
+
+	it('still rejects a 31s Wan 3.0 clip', async () => {
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+		const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+		await run(['--model', 'wan3.0-video', '--duration', '31']);
+
+		expect(mockClient.createVideoGeneration).not.toHaveBeenCalled();
+		expect(errSpy.mock.calls.flat().join(' ')).toContain('between 2 and 30 seconds');
+		exitSpy.mockRestore();
+	});
+
+	it('accepts a lone --last-frame for MiniMax-H3', async () => {
+		await run([
+			'--model',
+			'MiniMax-H3',
+			'--resolution',
+			'768p',
+			'--last-frame',
+			'https://example.com/last.png',
+		]);
+		expect(mockClient.createVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({model: 'MiniMax-H3'}),
+		);
+	});
+
+	it('still requires --first-frame alongside --last-frame for seedance', async () => {
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+		const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+		await run(['--model', 'doubao-seedance-2-pro', '--last-frame', 'https://example.com/last.png']);
+
+		expect(mockClient.createVideoGeneration).not.toHaveBeenCalled();
+		expect(errSpy.mock.calls.flat().join(' ')).toContain('--last-frame requires --first-frame');
+		exitSpy.mockRestore();
+	});
 });
 
 describe('video pixverse generate', () => {

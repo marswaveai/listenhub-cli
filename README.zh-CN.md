@@ -407,6 +407,14 @@ listenhub openapi video create --prompt "镜头缓缓拉远" \
 
 # 生成前预估积分
 listenhub openapi video estimate --model doubao-seedance-2-pro --resolution 1080p --duration 10
+
+# MiniMax H3：分辨率只有 768p / 2k，时长 4–15 秒；它会忽略 --seed 与 --no-generate-audio。
+listenhub openapi video create --prompt "A golden retriever on a sunny beach" \
+  --model MiniMax-H3 --resolution 768p --duration 4
+
+# Wan 3.0 最长 30 秒
+listenhub openapi video create --prompt "Slow pan over a mountain range" \
+  --model wan3.0-video --resolution 1080p --duration 30
 ```
 
 ### OpenAPI：PixVerse 视频生成

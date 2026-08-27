@@ -1,6 +1,7 @@
 import type {Command} from 'commander';
 import {getClient} from '../_shared/client.js';
 import {handleError} from '../_shared/output.js';
+import {VIDEO_MODEL_HELP, VIDEO_RESOLUTION_HELP} from '../_shared/video-model-limits.js';
 import {type VideoCreateOptions, createVideo} from '../video/video.js';
 import {
 	type LabnanaImageCreateOptions,
@@ -90,41 +91,52 @@ export function register(program: Command) {
 		.command('create')
 		.description('Create a Labnana video generation task')
 		.requiredOption('--prompt <text>', 'Video description')
-		.option(
-			'--model <model>',
-			'Model: happyhorse, doubao-seedance-2-pro, doubao-seedance-2-fast',
-			'happyhorse',
-		)
-		.option('--resolution <res>', 'Resolution: 480p, 720p, 1080p')
+		.option('--model <model>', VIDEO_MODEL_HELP, 'happyhorse')
+		.option('--resolution <res>', VIDEO_RESOLUTION_HELP)
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9, 4:5, 5:4')
-		.option('--duration <seconds>', 'Video duration in seconds (3-15)', Number)
+		.option('--duration <seconds>', 'Video duration in seconds (range depends on --model)', Number)
 		.option('--first-frame <path-or-url>', 'First frame image')
 		.option('--first-frame-meta <meta>', 'First frame metadata WIDTHxHEIGHT[:SIZE]')
 		.option('--last-frame <path-or-url>', 'Last frame image (requires --first-frame)')
 		.option('--last-frame-meta <meta>', 'Last frame metadata WIDTHxHEIGHT[:SIZE]')
-		.option('--reference-image <path-or-url>', 'Reference image (repeatable, max 9)', collect, [])
+		.option(
+			'--reference-image <path-or-url>',
+			'Reference image (repeatable; max depends on --model)',
+			collect,
+			[],
+		)
 		.option(
 			'--reference-image-meta <meta>',
 			'Reference image metadata WIDTHxHEIGHT[:SIZE] (repeatable, same order)',
 			collect,
 			[],
 		)
-		.option('--reference-video <path-or-url>', 'Reference video (repeatable, max 3)', collect, [])
+		.option(
+			'--reference-video <path-or-url>',
+			'Reference video (repeatable; max depends on --model)',
+			collect,
+			[],
+		)
 		.option(
 			'--reference-video-meta <meta>',
 			'Reference video metadata WIDTHxHEIGHT[:DURATION[:FPS[:SIZE]]] (repeatable, same order)',
 			collect,
 			[],
 		)
-		.option('--reference-audio <path-or-url>', 'Reference audio (repeatable, max 3)', collect, [])
+		.option(
+			'--reference-audio <path-or-url>',
+			'Reference audio (repeatable; max depends on --model)',
+			collect,
+			[],
+		)
 		.option(
 			'--input-video-duration <seconds>',
-			'Reference video duration (2-15, required with --reference-video)',
+			'Reference video duration (range depends on --model; required with --reference-video)',
 			Number,
 		)
-		.option('--no-generate-audio', 'Disable audio generation')
+		.option('--no-generate-audio', 'Disable audio generation (ignored by MiniMax-H3)')
 		.option('--audio-setting <mode>', 'Audio handling for video-edit: auto, origin')
-		.option('--seed <number>', 'Random seed (-1 to 4294967295)', Number)
+		.option('--seed <number>', 'Random seed (-1 to 4294967295; ignored by MiniMax-H3)', Number)
 		.option('--no-wait', 'Return immediately without polling')
 		.option('--timeout <seconds>', 'Polling timeout', Number, 1200)
 		.option('-j, --json', 'Output JSON', false)

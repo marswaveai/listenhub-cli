@@ -21,6 +21,11 @@ import {
 	type VideoReferenceImageMeta,
 	type VideoReferenceVideoMeta,
 } from '../_shared/video-reference-metadata.js';
+import {
+	VIDEO_MODEL_HELP,
+	VIDEO_RESOLUTION_HELP,
+	videoModelLimits,
+} from '../_shared/video-model-limits.js';
 import {getOpenAPIClient} from './client.js';
 import {pollOpenAPI} from './polling.js';
 
@@ -299,7 +304,7 @@ export function register(openapi: Command) {
 		.option('--last-frame-meta <meta>', 'Last frame metadata WIDTHxHEIGHT[:SIZE]')
 		.option(
 			'--reference-image <path-or-url>',
-			'Reference image (repeatable, max 9)',
+			'Reference image (repeatable; max depends on --model)',
 			collect,
 			[] as string[],
 		)
@@ -311,7 +316,7 @@ export function register(openapi: Command) {
 		)
 		.option(
 			'--reference-video <path-or-url>',
-			'Reference video (repeatable, max 3)',
+			'Reference video (repeatable; max depends on --model)',
 			collect,
 			[] as string[],
 		)
@@ -323,7 +328,7 @@ export function register(openapi: Command) {
 		)
 		.option(
 			'--reference-audio <path-or-url>',
-			'Reference audio (repeatable, max 3)',
+			'Reference audio (repeatable; max depends on --model)',
 			collect,
 			[] as string[],
 		)
@@ -331,19 +336,21 @@ export function register(openapi: Command) {
 			'--input-video-duration <seconds>',
 			'Input video duration in seconds (2-15, required with --reference-video)',
 		)
-		.option('--model <model>', 'Model name (e.g. doubao-seedance-2-pro)')
-		.option('--resolution <res>', 'Output resolution: 480p, 720p, 1080p')
+		.option('--model <model>', VIDEO_MODEL_HELP)
+		.option('--resolution <res>', VIDEO_RESOLUTION_HELP)
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9')
-		.option('--duration <seconds>', 'Video duration in seconds (4-15)')
-		.option('--no-generate-audio', 'Disable audio generation')
-		.option('--seed <number>', 'Random seed (-1 to 4294967295)')
+		.option('--duration <seconds>', 'Video duration in seconds (range depends on --model)')
+		.option('--no-generate-audio', 'Disable audio generation (ignored by MiniMax-H3)')
+		.option('--seed <number>', 'Random seed (-1 to 4294967295; ignored by MiniMax-H3)')
 		.option('--no-wait', 'Do not wait for task completion')
 		.option('--timeout <seconds>', 'Polling timeout in seconds', '1200')
 		.option('-j, --json', 'Output JSON', false)
 		.action(async (options: VideoCreateOptions) => {
 			try {
 				// Validation
-				if (options.lastFrame && !options.firstFrame) {
+				const limits = videoModelLimits(options.model, 'doubao-seedance-2-fast');
+
+				if (options.lastFrame && !options.firstFrame && limits.lastFrameRequiresFirstFrame) {
 					throw new Error('--last-frame requires --first-frame');
 				}
 				validateReferenceMetadata(options);
@@ -371,27 +378,29 @@ export function register(openapi: Command) {
 				if (
 					options.referenceAudio.length > 0 &&
 					options.referenceImage.length === 0 &&
-					options.referenceVideo.length === 0
+					options.referenceVideo.length === 0 &&
+					limits.referenceAudioRequiresVisual
 				) {
 					throw new Error('--reference-audio requires --reference-image or --reference-video');
 				}
 
-				if (options.referenceImage.length > 9) {
-					throw new Error('Maximum 9 reference images allowed');
+				if (options.referenceImage.length > limits.referenceImageMax) {
+					throw new Error(`Maximum ${limits.referenceImageMax} reference images allowed`);
 				}
 
-				if (options.referenceVideo.length > 3) {
-					throw new Error('Maximum 3 reference videos allowed');
+				if (options.referenceVideo.length > limits.referenceVideoMax) {
+					throw new Error(`Maximum ${limits.referenceVideoMax} reference videos allowed`);
 				}
 
-				if (options.referenceAudio.length > 3) {
-					throw new Error('Maximum 3 reference audios allowed');
+				if (options.referenceAudio.length > limits.referenceAudioMax) {
+					throw new Error(`Maximum ${limits.referenceAudioMax} reference audios allowed`);
 				}
 
 				if (options.duration !== undefined) {
 					const dur = Number(options.duration);
-					if (Number.isNaN(dur) || dur < 4 || dur > 15) {
-						throw new Error('--duration must be between 4 and 15 seconds');
+					const {min, max} = limits.duration;
+					if (Number.isNaN(dur) || dur < min || dur > max) {
+						throw new Error(`--duration must be between ${min} and ${max} seconds`);
 					}
 				}
 
@@ -404,8 +413,9 @@ export function register(openapi: Command) {
 
 				if (options.inputVideoDuration !== undefined) {
 					const ivd = Number(options.inputVideoDuration);
-					if (Number.isNaN(ivd) || ivd < 2 || ivd > 15) {
-						throw new Error('--input-video-duration must be between 2 and 15 seconds');
+					const {min, max} = limits.inputVideoDuration;
+					if (Number.isNaN(ivd) || ivd < min || ivd > max) {
+						throw new Error(`--input-video-duration must be between ${min} and ${max} seconds`);
 					}
 				}
 
@@ -583,8 +593,8 @@ export function register(openapi: Command) {
 	video
 		.command('estimate')
 		.description('Estimate credits for video generation')
-		.requiredOption('--model <model>', 'Model name (e.g. doubao-seedance-2-pro)')
-		.requiredOption('--resolution <res>', 'Output resolution: 480p, 720p, 1080p')
+		.requiredOption('--model <model>', VIDEO_MODEL_HELP)
+		.requiredOption('--resolution <res>', VIDEO_RESOLUTION_HELP)
 		.requiredOption('--duration <seconds>', 'Video duration in seconds', Number)
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9')
 		.option('--has-video-input', 'Whether input video is provided', false)
@@ -617,7 +627,7 @@ export function register(openapi: Command) {
 					model: options.model as OpenAPICreateVideoGenerationParams['model'] extends infer M
 						? NonNullable<M>
 						: never,
-					resolution: options.resolution as '480p' | '720p' | '1080p',
+					resolution: options.resolution as OpenAPIEstimateVideoCreditsParams['resolution'],
 					duration: Number(options.duration),
 					ratio: options.ratio as OpenAPICreateVideoGenerationParams['ratio'],
 					hasVideoInput: options.hasVideoInput || undefined,
