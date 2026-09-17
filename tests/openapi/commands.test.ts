@@ -256,7 +256,7 @@ describe('video create', () => {
 		vi.stubGlobal('fetch', fetchMock);
 		mockClient.createFileUpload.mockResolvedValue({
 			presignedUrl: 'https://upload.example.com/frame.png',
-			fileUrl: 'https://storage.googleapis.com/private-bucket/uploads/frame.png',
+			fileUrl: 'https://assets.private.marswaveai.cn/uploads/frame.png',
 		});
 		mockClient.createVideoGeneration.mockResolvedValue({taskId: '6a201660b9fc373811288f11'});
 		vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -297,7 +297,7 @@ describe('video create', () => {
 						{type: 'text', text: 'Timelapse'},
 						{
 							type: 'image_url',
-							image_url: {url: 'https://storage.googleapis.com/private-bucket/uploads/frame.png'},
+							image_url: {url: 'https://assets.private.marswaveai.cn/uploads/frame.png'},
 							role: 'first_frame',
 						},
 					],

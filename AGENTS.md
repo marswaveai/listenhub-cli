@@ -51,7 +51,7 @@ Each command module: `_cli.ts` (Commander registration) + implementation file.
 - Auth: OAuth for user commands, tokens at `$XDG_CONFIG_HOME/listenhub/credentials.json`; the `openapi` command group uses `lh_sk_` API keys (`$XDG_CONFIG_HOME/listenhub/openapi.json` or env)
 - Output: `--json` for machine output, human-readable default. Errors to stderr
 - Polling: 10s interval, configurable `--timeout`. `--no-wait` skips polling
-- File upload: `resolveFileOrUrl()` auto-detects local path vs URL; validates extension/size, uploads to GCS via presigned URL, returns storage.googleapis.com URL for server re-signing
+- File upload: `resolveFileOrUrl()` auto-detects local path vs URL; validates extension/size, uploads via the presigned URL, and returns the API-provided `fileUrl` unchanged
 - Exit codes: 0=success, 1=error, 2=auth (`CliAuthError`), 3=timeout (`CliTimeoutError`)
 - SDK: all HTTP through `@marswave/listenhub-sdk`, except GCS PUT (native fetch)
 

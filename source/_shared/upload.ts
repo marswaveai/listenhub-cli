@@ -113,8 +113,5 @@ export async function resolveFileOrUrl(
 		throw new Error(`Upload failed: ${String(response.status)} ${response.statusText}`);
 	}
 
-	// Return a storage.googleapis.com URL so the server's resolveUploadUrl
-	// can correctly strip the bucket name prefix and re-sign for downstream use.
-	const {pathname} = new URL(fileUrl);
-	return `https://storage.googleapis.com${pathname}`;
+	return fileUrl;
 }
