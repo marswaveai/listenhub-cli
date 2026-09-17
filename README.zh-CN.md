@@ -263,6 +263,101 @@ Labnana 的 `/v1/banana/images`。同一个后端的两条路由：Labnana 侧�
 | `openapi voice-clone update <speakerId>`  | 改音色名称或性别               |
 | `openapi voice-clone delete <speakerId>`  | 删除音色并释放一个名额         |
 
+### 音视频转写
+
+转写本地音频或视频，返回句子和词级时间戳。文件必须非空且不超过 **50 MiB**；
+`--duration-ms` 为原始媒体的毫秒时长，范围 1–7,200,000（2 小时）。语言自动检测，
+无需也不支持指定语言参数。支持 AAC、AMR、AVI、FLAC、FLV、M4A、MKV、MOV、
+MP3、MP4、MPEG、OGG、Opus、WAV、WebM、WMA 和 WMV。
+
+| 命令                                                | 说明                                                                                        |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `openapi transcription estimate --duration-ms <ms>` | 只读预估积分，不预留、不扣费                                                                |
+| `openapi transcription upload <file>`               | 直传本地文件，返回当前账号的文件 key                                                        |
+| `openapi transcription create`                      | 传入 `--file-key`、`--file-name`、`--duration-ms`、`--idempotency-key` 建任务，默认等待完成 |
+| `openapi transcription get <taskId>`                | 查询一次任务状态及预留、实扣积分                                                            |
+| `openapi transcription wait <taskId>`               | 等待完成或失败；`--timeout` 默认 1,200 秒                                                   |
+| `openapi transcription transcript <taskId>`         | 获取已完成转写，包含词级时间戳                                                              |
+
+```bash
+listenhub openapi transcription estimate --duration-ms 60001 --json
+listenhub openapi transcription upload ./reference.wav --json
+# 使用 upload 返回的 fileKey 和 fileName。创建任务会预留积分。
+listenhub openapi transcription create \
+  --file-key '<fileKey>' --file-name reference.wav --duration-ms 60001 \
+  --idempotency-key reference-take-1 --term ListenHub --no-wait --json
+listenhub openapi transcription wait '<taskId>' --json
+listenhub openapi transcription transcript '<taskId>' --json > transcript.json
+```
+
+重试同一次创建时复用原 `--idempotency-key`，有意创建新任务时换新 key；该参数必填，
+最多 128 字符。`--term` 可重复传入识别提示词（最多 50 个、每个最多 100 字符、合计
+最多 2,000 字符）。`create` 只接受当前账号通过 transcription upload 得到的文件 key，
+不接受远程媒体 URL。等待超时以退出码 3 返回，并附继续等待的命令；不会取消服务端任务，
+也不会重新提交。
+
+所有命令均支持 `--json`：stdout 只输出一个 JSON 值，不含 API 的 `code`/`data` 外层，
+错误写入 stderr。任务和转写响应字段原样保留，包括服务端额外元数据。主要结构如下：
+
+```json
+{"durationMs": 60001, "credits": 2}
+```
+
+`upload` 在签名 PUT 成功后返回文件信息，不输出签名 URL 或 API key：
+
+```json
+{
+	"fileKey": "<account-owned-file-key>",
+	"fileName": "reference.wav",
+	"fileSize": 192048,
+	"contentType": "audio/wav"
+}
+```
+
+`create --no-wait`、`get`、`wait` 和默认等待的 `create` 都返回任务对象。将 `id` 作为
+后续命令的 `taskId` 参数。状态为 `queued`、`transcribing`、`completed` 或 `failed`；
+失败时有 `errorCode`，完成时有 `result`。`reservedCredits` 是按原始时长预留的积分，
+`chargedCredits` 是结算后的实扣积分。
+
+```json
+{
+	"id": "<taskId>",
+	"fileName": "reference.wav",
+	"status": "queued",
+	"originalDurationMs": 60001,
+	"speechDurationMs": 0,
+	"reservedCredits": 2,
+	"chargedCredits": 0
+}
+```
+
+`transcript` 直接返回转写内容。`speakerId`、`detectedLanguage`、`punctuation`、
+`confidence` 为可选字段，所有 `startMs`/`endMs` 均为毫秒。任务未完成时读取 transcript
+会返回 API 错误。
+
+```json
+{
+	"text": "Hello!",
+	"originalDurationMs": 1200,
+	"speechDurationMs": 700,
+	"channels": [0],
+	"detectedLanguage": "en",
+	"model": "qwen-audio-3.0-asr-flash-filetrans",
+	"region": "cn-beijing",
+	"sentences": [
+		{
+			"startMs": 100,
+			"endMs": 800,
+			"text": "Hello!",
+			"speakerId": 0,
+			"words": [
+				{"startMs": 100, "endMs": 800, "text": "Hello", "punctuation": "!", "confidence": 0.96}
+			]
+		}
+	]
+}
+```
+
 ### 内容提取
 
 | 命令                       | 说明            |
