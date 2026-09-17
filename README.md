@@ -267,6 +267,104 @@ declares you hold the cloned person's consent — the API rejects the request wi
 | `openapi voice-clone update <speakerId>`  | Rename a speaker or change its gender        |
 | `openapi voice-clone delete <speakerId>`  | Delete a speaker and free one slot           |
 
+### Transcription
+
+Transcribe a local audio or video file with sentence and word timestamps. Files must
+be non-empty and at most **50 MiB**; `--duration-ms` is the source duration in
+milliseconds, from 1 to 7,200,000 (2 hours). Languages are detected automatically;
+there is no language flag. Upload accepts AAC, AMR, AVI, FLAC, FLV, M4A, MKV, MOV,
+MP3, MP4, MPEG, OGG, Opus, WAV, WebM, WMA and WMV.
+
+| Command                                             | Description                                                                                     |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `openapi transcription estimate --duration-ms <ms>` | Read-only credit estimate; does not reserve or charge credits                                   |
+| `openapi transcription upload <file>`               | Upload local bytes and return an account-owned file key                                         |
+| `openapi transcription create`                      | Create from `--file-key`, `--file-name`, `--duration-ms`, `--idempotency-key`; waits by default |
+| `openapi transcription get <taskId>`                | Read task status and reserved/charged credits once                                              |
+| `openapi transcription wait <taskId>`               | Poll until completed or failed; `--timeout` defaults to 1,200 seconds                           |
+| `openapi transcription transcript <taskId>`         | Read the completed transcript, including word timestamps                                        |
+
+```bash
+listenhub openapi transcription estimate --duration-ms 60001 --json
+listenhub openapi transcription upload ./reference.wav --json
+# Use the fileKey and fileName returned by upload. Create reserves credits.
+listenhub openapi transcription create \
+  --file-key '<fileKey>' --file-name reference.wav --duration-ms 60001 \
+  --idempotency-key reference-take-1 --term ListenHub --no-wait --json
+listenhub openapi transcription wait '<taskId>' --json
+listenhub openapi transcription transcript '<taskId>' --json > transcript.json
+```
+
+Use the same `--idempotency-key` when retrying the same creation; use a new key for
+an intentionally new task. The key is required and limited to 128 characters.
+Repeat `--term` for recognition hints (up to 50, each at most 100 characters, 2,000
+characters total). `create` accepts only a file key from this account's transcription
+upload, not a public media URL. A polling timeout returns exit code 3 and the command
+to resume waiting; it does not cancel the server task or submit a new one.
+
+Every command supports `--json`. Stdout contains one JSON value without the API's
+`code`/`data` envelope; errors go to stderr. Fields from task and transcript responses
+are preserved, including additional server metadata. The core JSON shapes are:
+
+```json
+{"durationMs": 60001, "credits": 2}
+```
+
+`upload` returns metadata after the signed PUT succeeds (no signed URL or API key):
+
+```json
+{
+	"fileKey": "<account-owned-file-key>",
+	"fileName": "reference.wav",
+	"fileSize": 192048,
+	"contentType": "audio/wav"
+}
+```
+
+`create --no-wait`, `get`, `wait` and waiting `create` return the task. Use `id` as the
+`taskId` argument. Status is `queued`, `transcribing`, `completed` or `failed`;
+`errorCode` is present on failures and `result` on completed tasks. Reserved credits
+reflect the source-duration estimate; charged credits reflect settlement.
+
+```json
+{
+	"id": "<taskId>",
+	"fileName": "reference.wav",
+	"status": "queued",
+	"originalDurationMs": 60001,
+	"speechDurationMs": 0,
+	"reservedCredits": 2,
+	"chargedCredits": 0
+}
+```
+
+`transcript` returns the transcript itself. `speakerId`, `detectedLanguage`,
+`punctuation` and `confidence` are optional; all `startMs`/`endMs` values are
+milliseconds. Reading a transcript before task completion returns an API error.
+
+```json
+{
+	"text": "Hello!",
+	"originalDurationMs": 1200,
+	"speechDurationMs": 700,
+	"channels": [0],
+	"detectedLanguage": "en",
+	"model": "qwen-audio-3.0-asr-flash-filetrans",
+	"region": "cn-beijing",
+	"sentences": [
+		{
+			"startMs": 100,
+			"endMs": 800,
+			"text": "Hello!",
+			"speakerId": 0,
+			"words": [
+				{"startMs": 100, "endMs": 800, "text": "Hello", "punctuation": "!", "confidence": 0.96}
+			]
+		}
+	]
+}
+```
+
 ### Content
 
 | Command                    | Description                |

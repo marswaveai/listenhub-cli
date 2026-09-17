@@ -12,6 +12,7 @@ import {register as registerListenHubVoice} from './listenhub-voice.js';
 import {register as registerVoiceClone} from './voice-clone.js';
 import {register as registerContent} from './content.js';
 import {register as registerSubscription} from './subscription.js';
+import {register as registerTranscription} from './transcription.js';
 
 export function register(program: Command) {
 	const openapi = program.command('openapi').description('OpenAPI Key–based commands');
@@ -28,4 +29,5 @@ export function register(program: Command) {
 	registerVoiceClone(openapi);
 	registerContent(openapi);
 	registerSubscription(openapi);
+	registerTranscription(openapi);
 }
