@@ -1,3 +1,10 @@
+import {
+	draftFinalParams,
+	parseAudioMeta,
+	seedanceRequestFields,
+	totalReferenceVideoDuration,
+	validateSeedanceOptions,
+} from '../_shared/seedance-options.js';
 import path from 'node:path';
 import type {
 	CreateVideoGenerationParams,
@@ -25,7 +32,7 @@ import {
 import {videoModelLimits} from '../_shared/video-model-limits.js';
 
 export type VideoCreateOptions = {
-	prompt: string;
+	prompt?: string;
 	model?: string;
 	resolution?: string;
 	ratio?: string;
@@ -39,6 +46,11 @@ export type VideoCreateOptions = {
 	referenceVideo: string[];
 	referenceVideoMeta: string[];
 	referenceAudio: string[];
+	referenceAudioMeta?: string[];
+	draft?: boolean;
+	draftTaskId?: string;
+	requestId?: string;
+	omniReferenceTaskType?: string;
 	inputVideoDuration?: number;
 	generateAudio: boolean;
 	audioSetting?: string;
@@ -62,9 +74,13 @@ export type VideoListOptions = {
 
 export type VideoEstimateOptions = {
 	model: string;
-	resolution: string;
-	duration: number;
-	ratio: string;
+	resolution?: string;
+	duration?: number;
+	ratio?: string;
+	draft?: boolean;
+	draftTaskId?: string;
+	omniReferenceTaskType?: string;
+	referenceAudioMeta?: string[];
 	hasVideoInput: boolean;
 	inputVideoDuration?: number;
 	referenceImageMeta: string[];
@@ -184,10 +200,16 @@ function validateReferenceMetadata(options: VideoCreateOptions): void {
 
 function validateCreateOptions(options: VideoCreateOptions): void {
 	const limits = videoModelLimits(options.model, 'happyhorse');
+	if (options.resolution !== undefined && !limits.resolutions.includes(options.resolution))
+		throw new Error(`Unsupported resolution for ${options.model ?? 'happyhorse'}`);
 
 	if (options.duration !== undefined) {
 		const {min, max} = limits.duration;
-		if (options.duration < min || options.duration > max) {
+		if (
+			!Number.isInteger(options.duration) ||
+			(!(options.model === 'doubao-seedance-2-5' && options.duration === -1) &&
+				(options.duration < min || options.duration > max))
+		) {
 			throw new Error(`Duration must be between ${min} and ${max} seconds`);
 		}
 	}
@@ -281,6 +303,8 @@ export async function createVideo(
 	options: VideoCreateOptions,
 	surface: VideoSurface = 'listenhub',
 ): Promise<void> {
+	validateSeedanceOptions(options);
+	options.inputVideoDuration = totalReferenceVideoDuration(options) ?? options.inputVideoDuration;
 	if (options.referenceVideo.length > 0 && options.inputVideoDuration === undefined) {
 		const localVideo = options.referenceVideo.find(
 			(v) => !v.startsWith('http://') && !v.startsWith('https://'),
@@ -300,7 +324,7 @@ export async function createVideo(
 
 	validateCreateOptions(options);
 
-	const content: VideoContentItem[] = [{type: 'text', text: options.prompt}];
+	const content: VideoContentItem[] = options.prompt ? [{type: 'text', text: options.prompt}] : [];
 
 	if (options.firstFrame) {
 		const url = await resolveFileOrUrl(client, options.firstFrame, {
@@ -323,19 +347,57 @@ export async function createVideo(
 		content.push({type: 'image_url', image_url: {url}, role: 'reference_image'});
 	}
 
-	for (const ref of options.referenceVideo) {
-		const url = await resolveFileOrUrl(client, ref, {accept: 'video', category: 'episode'}); // eslint-disable-line no-await-in-loop
-		content.push({type: 'video_url', video_url: {url}, role: 'reference_video'});
+	for (const [index, ref] of options.referenceVideo.entries()) {
+		const url = await resolveFileOrUrl(client, ref, {
+			accept: 'video',
+			category: 'episode',
+			...(options.model === 'doubao-seedance-2-5' && {maxSizeBytes: 200 * 1024 * 1024}),
+		}); // eslint-disable-line no-await-in-loop
+		const videoMeta = options.referenceVideoMeta[index];
+		const metadata =
+			options.model === 'doubao-seedance-2-5' && videoMeta ? parseVideoMeta(videoMeta) : undefined;
+		content.push({
+			type: 'video_url',
+			video_url: {
+				url,
+				...(metadata && {
+					width: metadata.width,
+					height: metadata.height,
+					duration: metadata.duration,
+					fps: metadata.fps,
+					size: metadata.size,
+				}),
+			},
+			role: 'reference_video',
+		});
 	}
 
-	for (const ref of options.referenceAudio) {
-		const url = await resolveFileOrUrl(client, ref, {accept: 'audio', category: 'episode'}); // eslint-disable-line no-await-in-loop
-		content.push({type: 'audio_url', audio_url: {url}, role: 'reference_audio'});
+	for (const [index, ref] of options.referenceAudio.entries()) {
+		const url = await resolveFileOrUrl(client, ref, {
+			accept: 'audio',
+			category: 'episode',
+			...(options.model === 'doubao-seedance-2-5' && {
+				maxSizeBytes: 15 * 1024 * 1024,
+				extensions: ['.mp3', '.wav'],
+			}),
+		}); // eslint-disable-line no-await-in-loop
+		const meta = options.referenceAudioMeta?.[index];
+		const audio = {url, ...(meta && parseAudioMeta(meta))};
+		content.push({
+			type: 'audio_url',
+			audio_url: {
+				url: audio.url,
+				...('duration' in audio && {duration: audio.duration}),
+				...('size' in audio && {size: audio.size}),
+			},
+			role: 'reference_audio',
+		} as VideoContentItem);
 	}
 
 	const referenceImages = await getReferenceImages(options, 'happyhorse');
 	const referenceVideos = getReferenceVideos(options);
 	const params: CreateVideoGenerationParamsWithMetadata = {
+		...seedanceRequestFields(options),
 		content,
 		...(options.model && {model: options.model as VideoGenerationModel}),
 		...(options.resolution && {resolution: options.resolution as VideoGenerationResolution}),
@@ -353,8 +415,16 @@ export async function createVideo(
 
 	const {taskId: rawTaskId} =
 		surface === 'labnana'
-			? await client.createBananaVideoGeneration(params)
-			: await client.createVideoGeneration(params);
+			? await client.createBananaVideoGeneration(
+					options.draftTaskId
+						? (draftFinalParams(options) as unknown as CreateVideoGenerationParams)
+						: params,
+				)
+			: await client.createVideoGeneration(
+					options.draftTaskId
+						? (draftFinalParams(options) as unknown as CreateVideoGenerationParams)
+						: params,
+				);
 	const taskId = normalizeVideoTaskId(rawTaskId);
 
 	if (!options.wait) {
@@ -446,6 +516,14 @@ export async function estimateCredits(
 	client: ListenHubClient,
 	options: VideoEstimateOptions,
 ): Promise<void> {
+	validateSeedanceOptions(options, true);
+	const totalDuration = totalReferenceVideoDuration(options);
+	if (totalDuration !== undefined) {
+		options.inputVideoDuration = totalDuration;
+		options.hasVideoInput = true;
+	}
+	if (!options.draftTaskId && (options.resolution === undefined || options.duration === undefined))
+		throw new Error('--resolution and --duration are required unless --draft-task-id is provided');
 	if (options.hasVideoInput && options.inputVideoDuration === undefined) {
 		throw new Error('--input-video-duration is required when using --has-video-input');
 	}
@@ -457,7 +535,7 @@ export async function estimateCredits(
 	const params: EstimateVideoGenerationCreditsParams = {
 		model: options.model as VideoGenerationModel,
 		resolution: options.resolution as VideoGenerationResolution,
-		duration: options.duration,
+		duration: options.duration!,
 		...(options.ratio && {ratio: options.ratio as VideoGenerationRatio}),
 		...(options.hasVideoInput && {hasVideoInput: true}),
 		...(options.inputVideoDuration !== undefined && {
@@ -471,10 +549,18 @@ export async function estimateCredits(
 	const referenceVideos = options.referenceVideoMeta.map(parseVideoMeta);
 	const estimateParams: EstimateVideoGenerationCreditsParamsWithMetadata = {
 		...params,
+		...seedanceRequestFields(options),
+		...((options.referenceAudioMeta?.length ?? 0) > 0 && {
+			referenceAudios: options.referenceAudioMeta!.map(parseAudioMeta),
+		}),
 		...(referenceImages.length > 0 && {referenceImages}),
 		...(referenceVideos.length > 0 && {referenceVideos}),
 	};
-	const result = await client.estimateVideoGenerationCredits(estimateParams);
+	const result = await client.estimateVideoGenerationCredits(
+		options.draftTaskId
+			? (draftFinalParams(options) as unknown as EstimateVideoGenerationCreditsParams)
+			: estimateParams,
+	);
 
 	if (options.json) {
 		printJson(result);

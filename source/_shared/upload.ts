@@ -52,7 +52,12 @@ function allowedExtensions(accept: FileAcceptType): Set<string> {
 export async function resolveFileOrUrl(
 	client: FileUploadClient,
 	input: string,
-	options: {accept: FileAcceptType; category?: string},
+	options: {
+		accept: FileAcceptType;
+		category?: string;
+		maxSizeBytes?: number;
+		extensions?: readonly string[];
+	},
 ): Promise<string> {
 	const trimmed = input.trim();
 
@@ -73,7 +78,7 @@ export async function resolveFileOrUrl(
 
 	// Extension check
 	const ext = path.extname(filePath).toLowerCase();
-	const allowed = allowedExtensions(options.accept);
+	const allowed = new Set(options.extensions ?? allowedExtensions(options.accept));
 	if (!allowed.has(ext)) {
 		const expected = [...allowed].join(', ');
 		throw new Error(`Unsupported ${options.accept} format: ${ext} (expected: ${expected})`);
@@ -81,7 +86,7 @@ export async function resolveFileOrUrl(
 
 	// Size check
 	const fileStat = await stat(filePath);
-	const maxBytes = maxSizeBytes[options.accept];
+	const maxBytes = options.maxSizeBytes ?? maxSizeBytes[options.accept];
 	if (fileStat.size > maxBytes) {
 		const sizeMb = (fileStat.size / (1024 * 1024)).toFixed(1);
 		const maxMb = maxBytes / (1024 * 1024);

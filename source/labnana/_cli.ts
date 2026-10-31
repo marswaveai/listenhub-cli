@@ -90,7 +90,7 @@ export function register(program: Command) {
 	video
 		.command('create')
 		.description('Create a Labnana video generation task')
-		.requiredOption('--prompt <text>', 'Video description')
+		.option('--prompt <text>', 'Video description (omit for --draft-task-id)')
 		.option('--model <model>', VIDEO_MODEL_HELP, 'happyhorse')
 		.option('--resolution <res>', VIDEO_RESOLUTION_HELP)
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9, 4:5, 5:4')
@@ -133,6 +133,16 @@ export function register(program: Command) {
 			'--input-video-duration <seconds>',
 			'Reference video duration (range depends on --model; required with --reference-video)',
 			Number,
+		)
+		.option('--draft', 'Generate a Seedance 2.5 draft at 480p')
+		.option('--draft-task-id <id>', 'Generate 1080p final from a successful ListenHub draft task')
+		.option('--request-id <id>', 'Reuse this ID when retrying the same request')
+		.option('--omni-reference-task-type <type>', 'Seedance 2.5: auto, reference, edit, extend')
+		.option(
+			'--reference-audio-meta <meta>',
+			'Audio DURATION[:SIZE] (repeatable, same order)',
+			collect,
+			[],
 		)
 		.option('--no-generate-audio', 'Disable audio generation (ignored by MiniMax-H3)')
 		.option('--audio-setting <mode>', 'Audio handling for video-edit: auto, origin')

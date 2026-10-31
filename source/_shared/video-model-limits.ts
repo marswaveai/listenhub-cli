@@ -16,6 +16,7 @@
 export const VIDEO_MODELS = [
 	'doubao-seedance-2-pro',
 	'doubao-seedance-2-fast',
+	'doubao-seedance-2-5',
 	'happyhorse',
 	'wan3.0-video',
 	'wan3.0-video-prime',
@@ -75,7 +76,16 @@ const MINIMAX_H3: VideoModelLimits = {
 
 const LIMITS_BY_MODEL: Record<VideoModelName, VideoModelLimits> = {
 	'doubao-seedance-2-pro': SEEDANCE,
-	'doubao-seedance-2-fast': SEEDANCE,
+	'doubao-seedance-2-fast': {...SEEDANCE, resolutions: ['480p', '720p']},
+	'doubao-seedance-2-5': {
+		...SEEDANCE,
+		duration: {min: 4, max: 30},
+		inputVideoDuration: {min: 2, max: 30},
+		referenceImageMax: 30,
+		referenceVideoMax: 10,
+		referenceAudioMax: 10,
+		referenceAudioRequiresVisual: false,
+	},
 	happyhorse: {
 		duration: {min: 3, max: 15},
 		inputVideoDuration: {min: 3, max: 60},
