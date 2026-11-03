@@ -82,6 +82,86 @@ describe('Seedance 2.5 requests', () => {
 			);
 		},
 	);
+	it.each(['listenhub', 'labnana'] as const)(
+		'rejects 2.5 audio metadata on 2.0 before submission on %s',
+		async (surface) => {
+			await expect(
+				createVideo(
+					client as never,
+					options({
+						model: 'doubao-seedance-2-pro',
+						referenceImage: ['https://example.com/a.png'],
+						referenceImageMeta: ['1280x720'],
+						referenceAudio: ['https://example.com/a.mp3'],
+						referenceAudioMeta: ['5:300000'],
+					}),
+					surface,
+				),
+			).rejects.toThrow('--reference-audio-meta requires --model doubao-seedance-2-5');
+			expect(client.createVideoGeneration).not.toHaveBeenCalled();
+			expect(client.createBananaVideoGeneration).not.toHaveBeenCalled();
+		},
+	);
+	it('OpenAPI rejects 2.5 audio metadata on 2.0 before submission', async () => {
+		const parent = new Command().exitOverride();
+		const stderr = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+		vi.spyOn(process, 'exit').mockImplementation(() => {
+			throw new Error('CLI exit');
+		});
+		registerOpenAPIVideo(parent);
+		await expect(
+			parent.parseAsync(
+				[
+					'video',
+					'create',
+					'--model',
+					'doubao-seedance-2-pro',
+					'--prompt',
+					'Follow music',
+					'--reference-image',
+					'https://example.com/a.png',
+					'--reference-image-meta',
+					'1280x720',
+					'--reference-audio',
+					'https://example.com/a.mp3',
+					'--reference-audio-meta',
+					'5:300000',
+					'--no-wait',
+					'--json',
+				],
+				{from: 'user'},
+			),
+		).rejects.toThrow('CLI exit');
+		expect(stderr).toHaveBeenCalledWith(
+			expect.stringContaining('--reference-audio-meta requires --model doubao-seedance-2-5'),
+		);
+		expect(client.createVideoGeneration).not.toHaveBeenCalled();
+	});
+	it.each(['doubao-seedance-2-pro', 'doubao-seedance-2-fast'])(
+		'preserves URL-only audio references for %s',
+		async (selectedModel) => {
+			await createVideo(
+				client as never,
+				options({
+					model: selectedModel,
+					referenceImage: ['https://example.com/a.png'],
+					referenceImageMeta: ['1280x720'],
+					referenceAudio: ['https://example.com/a.mp3'],
+				}),
+			);
+			expect(client.createVideoGeneration).toHaveBeenCalledWith(
+				expect.objectContaining({
+					content: expect.arrayContaining([
+						{
+							type: 'audio_url',
+							audio_url: {url: 'https://example.com/a.mp3'},
+							role: 'reference_audio',
+						},
+					]),
+				}),
+			);
+		},
+	);
 	it('accepts all 50 references plus prompt without dropping assets', async () => {
 		await createVideo(
 			client as never,

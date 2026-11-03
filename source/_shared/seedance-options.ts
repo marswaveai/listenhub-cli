@@ -48,6 +48,8 @@ export function seedanceRequestFields(options: SeedanceOptions) {
 export function validateSeedanceOptions(options: SeedanceOptions, estimate = false): void {
 	const is25 = options.model === 'doubao-seedance-2-5';
 	if (!is25) {
+		if (options.referenceAudioMeta?.length)
+			throw new Error('--reference-audio-meta requires --model doubao-seedance-2-5');
 		if (
 			options.draft ||
 			options.draftTaskId ||
