@@ -41,7 +41,13 @@ export function seedanceRequestFields(options: SeedanceOptions) {
 		...(options.draft !== undefined && {draft: options.draft}),
 		...(options.draftTaskId && {draftTaskId: options.draftTaskId}),
 		...(options.requestId && {requestId: options.requestId}),
-		...(options.omniReferenceTaskType && {omniReferenceTaskType: options.omniReferenceTaskType}),
+		...(options.omniReferenceTaskType && {
+			omniReferenceTaskType: options.omniReferenceTaskType as
+				| 'auto'
+				| 'reference'
+				| 'edit'
+				| 'extend',
+		}),
 	};
 }
 
