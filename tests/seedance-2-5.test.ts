@@ -37,7 +37,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	client.createVideoGeneration.mockResolvedValue({taskId});
 	client.createBananaVideoGeneration.mockResolvedValue({taskId});
-	client.estimateVideoCredits.mockResolvedValue({credits: 143, tokens: 108000});
+	client.estimateVideoCredits.mockResolvedValue({estimatedCostUsd: 1.3, tokens: 108000});
 	client.estimateVideoGenerationCredits.mockResolvedValue({credits: 143, tokens: 108000});
 	vi.spyOn(console, 'log').mockImplementation(() => undefined);
 });

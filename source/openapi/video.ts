@@ -665,7 +665,7 @@ export function register(openapi: Command) {
 
 	video
 		.command('estimate')
-		.description('Estimate credits for video generation')
+		.description('Estimate USD cost for video generation')
 		.requiredOption('--model <model>', VIDEO_MODEL_HELP)
 		.option('--resolution <res>', VIDEO_RESOLUTION_HELP)
 		.option('--duration <seconds>', 'Video duration in seconds', Number)
@@ -732,18 +732,20 @@ export function register(openapi: Command) {
 					...(referenceImages.length > 0 && {referenceImages}),
 					...(referenceVideos.length > 0 && {referenceVideos}),
 				};
-				const result = await client.estimateVideoCredits(
-					options.draftTaskId
-						? (draftFinalParams(options) as unknown as OpenAPIEstimateVideoCreditsParams)
-						: params,
-				);
+				// SDK 0.0.22 omits the public USD field from its declarations.
+				const result: {tokens: number; estimatedCostUsd?: number} =
+					await client.estimateVideoCredits(
+						options.draftTaskId
+							? (draftFinalParams(options) as unknown as OpenAPIEstimateVideoCreditsParams)
+							: params,
+					);
 
 				if (options.json) {
 					printJson(result);
 				} else {
-					printDetail('Credit Estimate', [
+					printDetail('Cost Estimate', [
 						['Tokens', result.tokens],
-						['Credits', result.credits],
+						['Estimated cost (USD)', result.estimatedCostUsd],
 					]);
 				}
 			} catch (error) {
@@ -935,7 +937,7 @@ function registerPixVerse(video: Command) {
 
 	pixverse
 		.command('estimate')
-		.description('Estimate credits for a PixVerse video generation task')
+		.description('Estimate USD cost for a PixVerse video generation task')
 		.requiredOption('--capability <capability>', `Capability: ${pixVerseCapabilities.join(', ')}`)
 		.option('--model <model>', `Model: ${pixVerseModels.join(', ')} (default pixverse)`)
 		.option('--language <lang>', `Service region: ${pixVerseLanguages.join(', ')} (default en)`)
@@ -969,14 +971,15 @@ function registerPixVerse(video: Command) {
 				};
 
 				const client = await getOpenAPIClient();
-				const result = await client.estimatePixVerseVideoCredits(params);
+				const result: {tokens: number; estimatedCostUsd?: number} =
+					await client.estimatePixVerseVideoCredits(params);
 
 				if (options.json) {
 					printJson(result);
 				} else {
-					printDetail('PixVerse Credit Estimate', [
+					printDetail('PixVerse Cost Estimate', [
 						['Tokens', result.tokens],
-						['Credits', result.credits],
+						['Estimated cost (USD)', result.estimatedCostUsd],
 					]);
 				}
 			} catch (error) {

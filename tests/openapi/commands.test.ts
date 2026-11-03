@@ -360,9 +360,45 @@ describe('video create', () => {
 	});
 });
 
+describe('OpenAPI video estimate output', () => {
+	it.each([
+		[
+			'Seedance',
+			[
+				'video',
+				'estimate',
+				'--model',
+				'doubao-seedance-2-5',
+				'--resolution',
+				'720p',
+				'--duration',
+				'5',
+			],
+			'estimateVideoCredits',
+		],
+		[
+			'PixVerse',
+			['video', 'pixverse', 'estimate', '--capability', 'text_to_video'],
+			'estimatePixVerseVideoCredits',
+		],
+	] as const)('%s displays USD cost and tokens in human output', async (_model, args, method) => {
+		mockClient[method].mockResolvedValue({tokens: 172800, estimatedCostUsd: 1.369863});
+		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+		const parent = makeParent();
+		registerVideo(parent);
+
+		await parent.parseAsync([...args], {from: 'user'});
+
+		const output = consoleSpy.mock.calls.flat().join('\n');
+		expect(output).toContain('Tokens     172800');
+		expect(output).toContain('Estimated cost (USD) 1.369863');
+		expect(output).not.toMatch(/Credits|undefined/);
+	});
+});
+
 describe('video estimate', () => {
 	it('passes reference metadata to estimateVideoCredits', async () => {
-		mockClient.estimateVideoCredits.mockResolvedValue({tokens: 3320, credits: 10});
+		mockClient.estimateVideoCredits.mockResolvedValue({tokens: 3320, estimatedCostUsd: 0.1});
 		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
 		const parent = makeParent();
@@ -407,11 +443,13 @@ describe('video estimate', () => {
 				],
 			}),
 		);
-		expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({tokens: 3320, credits: 10}, null, 2));
+		expect(consoleSpy).toHaveBeenCalledWith(
+			JSON.stringify({tokens: 3320, estimatedCostUsd: 0.1}, null, 2),
+		);
 	});
 
 	it.each(['768p', '2k'])('accepts MiniMax-H3 at %s', async (resolution) => {
-		mockClient.estimateVideoCredits.mockResolvedValue({tokens: 4000, credits: 38});
+		mockClient.estimateVideoCredits.mockResolvedValue({tokens: 4000, estimatedCostUsd: 0.38});
 		vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
 		const parent = makeParent();
@@ -713,7 +751,7 @@ describe('video pixverse generate', () => {
 
 describe('video pixverse estimate', () => {
 	it('calls estimatePixVerseVideoCredits with capability/quality/duration and prints JSON', async () => {
-		const estimate = {tokens: 1400, credits: 14};
+		const estimate = {tokens: 1400, estimatedCostUsd: 0.14};
 		mockClient.estimatePixVerseVideoCredits.mockResolvedValue(estimate);
 		const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
@@ -747,7 +785,10 @@ describe('video pixverse estimate', () => {
 	});
 
 	it('passes agentType under pixverse for capability=agent', async () => {
-		mockClient.estimatePixVerseVideoCredits.mockResolvedValue({tokens: 3000, credits: 30});
+		mockClient.estimatePixVerseVideoCredits.mockResolvedValue({
+			tokens: 3000,
+			estimatedCostUsd: 0.3,
+		});
 		vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
 		const parent = makeParent();
