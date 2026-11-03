@@ -1,3 +1,10 @@
+import {
+	draftFinalParams,
+	parseAudioMeta,
+	seedanceRequestFields,
+	totalReferenceVideoDuration,
+	validateSeedanceOptions,
+} from '../_shared/seedance-options.js';
 import path from 'node:path';
 import type {Command} from 'commander';
 import type {
@@ -119,7 +126,7 @@ type PixVerseEstimateOptions = {
 };
 
 type VideoCreateOptions = {
-	prompt: string;
+	prompt?: string;
 	firstFrame?: string;
 	firstFrameMeta?: string;
 	lastFrame?: string;
@@ -129,6 +136,11 @@ type VideoCreateOptions = {
 	referenceVideo: string[];
 	referenceVideoMeta: string[];
 	referenceAudio: string[];
+	referenceAudioMeta?: string[];
+	draft?: boolean;
+	draftTaskId?: string;
+	requestId?: string;
+	omniReferenceTaskType?: string;
 	inputVideoDuration?: string;
 	model?: string;
 	resolution?: string;
@@ -164,8 +176,12 @@ type VideoListOptions = {
 
 type VideoEstimateOptions = {
 	model: string;
-	resolution: string;
-	duration: string;
+	resolution?: string;
+	duration?: string;
+	draft?: boolean;
+	draftTaskId?: string;
+	omniReferenceTaskType?: string;
+	referenceAudioMeta?: string[];
 	ratio?: string;
 	hasVideoInput: boolean;
 	inputVideoDuration?: string;
@@ -297,7 +313,7 @@ export function register(openapi: Command) {
 	video
 		.command('create')
 		.description('Create a video generation task')
-		.requiredOption('--prompt <text>', 'Video description / prompt')
+		.option('--prompt <text>', 'Video description (omit for --draft-task-id)')
 		.option('--first-frame <path-or-url>', 'First frame image')
 		.option('--first-frame-meta <meta>', 'First frame metadata WIDTHxHEIGHT[:SIZE]')
 		.option('--last-frame <path-or-url>', 'Last frame image (requires --first-frame)')
@@ -340,6 +356,16 @@ export function register(openapi: Command) {
 		.option('--resolution <res>', VIDEO_RESOLUTION_HELP)
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9')
 		.option('--duration <seconds>', 'Video duration in seconds (range depends on --model)')
+		.option('--draft', 'Generate a Seedance 2.5 draft at 480p')
+		.option('--draft-task-id <id>', 'Generate 1080p final from a successful ListenHub draft task')
+		.option('--request-id <id>', 'Reuse this ID when retrying the same request')
+		.option('--omni-reference-task-type <type>', 'Seedance 2.5: auto, reference, edit, extend')
+		.option(
+			'--reference-audio-meta <meta>',
+			'Audio DURATION[:SIZE] (repeatable, same order)',
+			collect,
+			[],
+		)
 		.option('--no-generate-audio', 'Disable audio generation (ignored by MiniMax-H3)')
 		.option('--seed <number>', 'Random seed (-1 to 4294967295; ignored by MiniMax-H3)')
 		.option('--no-wait', 'Do not wait for task completion')
@@ -347,8 +373,14 @@ export function register(openapi: Command) {
 		.option('-j, --json', 'Output JSON', false)
 		.action(async (options: VideoCreateOptions) => {
 			try {
-				// Validation
+				validateSeedanceOptions(options);
+				const totalDuration = totalReferenceVideoDuration(options);
+				if (totalDuration !== undefined) options.inputVideoDuration = String(totalDuration);
 				const limits = videoModelLimits(options.model, 'doubao-seedance-2-fast');
+				if (options.resolution !== undefined && !limits.resolutions.includes(options.resolution))
+					throw new Error(
+						`Unsupported resolution for ${options.model ?? 'doubao-seedance-2-fast'}`,
+					);
 
 				if (options.lastFrame && !options.firstFrame && limits.lastFrameRequiresFirstFrame) {
 					throw new Error('--last-frame requires --first-frame');
@@ -399,7 +431,10 @@ export function register(openapi: Command) {
 				if (options.duration !== undefined) {
 					const dur = Number(options.duration);
 					const {min, max} = limits.duration;
-					if (Number.isNaN(dur) || dur < min || dur > max) {
+					if (
+						!Number.isInteger(dur) ||
+						(!(options.model === 'doubao-seedance-2-5' && dur === -1) && (dur < min || dur > max))
+					) {
 						throw new Error(`--duration must be between ${min} and ${max} seconds`);
 					}
 				}
@@ -422,9 +457,9 @@ export function register(openapi: Command) {
 				const client = await getOpenAPIClient();
 
 				// Build content array
-				const content: OpenAPICreateVideoGenerationParams['content'] = [
-					{type: 'text', text: options.prompt},
-				];
+				const content: NonNullable<OpenAPICreateVideoGenerationParams['content']> = options.prompt
+					? [{type: 'text', text: options.prompt}]
+					: [];
 
 				if (options.firstFrame) {
 					const url = await resolveFileOrUrl(client, options.firstFrame, {
@@ -458,25 +493,59 @@ export function register(openapi: Command) {
 					content.push({type: 'image_url', image_url: {url}, role: 'reference_image'});
 				}
 
-				for (const ref of options.referenceVideo) {
+				for (const [index, ref] of options.referenceVideo.entries()) {
 					const url = await resolveFileOrUrl(client, ref, {
 						accept: 'video',
 						category: 'episode',
+						...(options.model === 'doubao-seedance-2-5' && {maxSizeBytes: 200 * 1024 * 1024}),
 					}); // eslint-disable-line no-await-in-loop
-					content.push({type: 'video_url', video_url: {url}, role: 'reference_video'});
+					const videoMeta = options.referenceVideoMeta[index];
+					const metadata =
+						options.model === 'doubao-seedance-2-5' && videoMeta
+							? parseVideoMeta(videoMeta)
+							: undefined;
+					content.push({
+						type: 'video_url',
+						video_url: {
+							url,
+							...(metadata && {
+								width: metadata.width,
+								height: metadata.height,
+								duration: metadata.duration,
+								fps: metadata.fps,
+								size: metadata.size,
+							}),
+						},
+						role: 'reference_video',
+					});
 				}
 
-				for (const ref of options.referenceAudio) {
+				for (const [index, ref] of options.referenceAudio.entries()) {
 					const url = await resolveFileOrUrl(client, ref, {
 						accept: 'audio',
 						category: 'episode',
+						...(options.model === 'doubao-seedance-2-5' && {
+							maxSizeBytes: 15 * 1024 * 1024,
+							extensions: ['.mp3', '.wav'],
+						}),
 					}); // eslint-disable-line no-await-in-loop
-					content.push({type: 'audio_url', audio_url: {url}, role: 'reference_audio'});
+					const meta = options.referenceAudioMeta?.[index];
+					const audio = {url, ...(meta && parseAudioMeta(meta))};
+					content.push({
+						type: 'audio_url',
+						audio_url: {
+							url: audio.url,
+							...('duration' in audio && {duration: audio.duration}),
+							...('size' in audio && {size: audio.size}),
+						},
+						role: 'reference_audio',
+					} as NonNullable<OpenAPICreateVideoGenerationParams['content']>[number]);
 				}
 
 				const referenceImages = await getReferenceImages(options, 'doubao-seedance-2-fast');
 				const referenceVideos = getReferenceVideos(options);
 				const params: OpenAPIVideoGenerationParamsWithMetadata = {
+					...seedanceRequestFields(options),
 					content,
 					model: options.model as OpenAPICreateVideoGenerationParams['model'],
 					resolution: options.resolution as OpenAPICreateVideoGenerationParams['resolution'],
@@ -492,7 +561,11 @@ export function register(openapi: Command) {
 					...(referenceVideos.length > 0 && {referenceVideos}),
 				};
 
-				const {taskId: rawTaskId} = await client.createVideoGeneration(params);
+				const {taskId: rawTaskId} = await client.createVideoGeneration(
+					options.draftTaskId
+						? (draftFinalParams(options) as unknown as OpenAPICreateVideoGenerationParams)
+						: params,
+				);
 				const taskId = normalizeVideoTaskId(rawTaskId);
 
 				if (!options.wait) {
@@ -592,10 +665,10 @@ export function register(openapi: Command) {
 
 	video
 		.command('estimate')
-		.description('Estimate credits for video generation')
+		.description('Estimate USD cost for video generation')
 		.requiredOption('--model <model>', VIDEO_MODEL_HELP)
-		.requiredOption('--resolution <res>', VIDEO_RESOLUTION_HELP)
-		.requiredOption('--duration <seconds>', 'Video duration in seconds', Number)
+		.option('--resolution <res>', VIDEO_RESOLUTION_HELP)
+		.option('--duration <seconds>', 'Video duration in seconds', Number)
 		.option('--ratio <ratio>', 'Aspect ratio: 16:9, 4:3, 1:1, 3:4, 9:16, 21:9')
 		.option('--has-video-input', 'Whether input video is provided', false)
 		.option('--input-video-duration <seconds>', 'Input video duration in seconds', Number)
@@ -611,9 +684,26 @@ export function register(openapi: Command) {
 			collect,
 			[] as string[],
 		)
+		.option('--draft', 'Estimate 480p draft')
+		.option('--draft-task-id <id>', 'Estimate final from a successful draft')
+		.option('--omni-reference-task-type <type>', 'Seedance 2.5: auto, reference, edit, extend')
+		.option('--reference-audio-meta <meta>', 'Audio DURATION[:SIZE] (repeatable)', collect, [])
 		.option('-j, --json', 'Output JSON', false)
 		.action(async (options: VideoEstimateOptions) => {
 			try {
+				validateSeedanceOptions(options, true);
+				const totalDuration = totalReferenceVideoDuration(options);
+				if (totalDuration !== undefined) {
+					options.inputVideoDuration = String(totalDuration);
+					options.hasVideoInput = true;
+				}
+				if (
+					!options.draftTaskId &&
+					(options.resolution === undefined || options.duration === undefined)
+				)
+					throw new Error(
+						'--resolution and --duration are required unless --draft-task-id is provided',
+					);
 				if (options.hasVideoInput && options.inputVideoDuration === undefined) {
 					throw new Error('--has-video-input requires --input-video-duration');
 				}
@@ -624,6 +714,10 @@ export function register(openapi: Command) {
 				);
 				const referenceVideos = options.referenceVideoMeta.map(parseVideoMeta);
 				const params: OpenAPIEstimateVideoCreditsParamsWithMetadata = {
+					...seedanceRequestFields(options),
+					...((options.referenceAudioMeta?.length ?? 0) > 0 && {
+						referenceAudios: options.referenceAudioMeta!.map(parseAudioMeta),
+					}),
 					model: options.model as OpenAPICreateVideoGenerationParams['model'] extends infer M
 						? NonNullable<M>
 						: never,
@@ -638,14 +732,20 @@ export function register(openapi: Command) {
 					...(referenceImages.length > 0 && {referenceImages}),
 					...(referenceVideos.length > 0 && {referenceVideos}),
 				};
-				const result = await client.estimateVideoCredits(params);
+				// SDK 0.0.22 omits the public USD field from its declarations.
+				const result: {tokens: number; estimatedCostUsd?: number} =
+					await client.estimateVideoCredits(
+						options.draftTaskId
+							? (draftFinalParams(options) as unknown as OpenAPIEstimateVideoCreditsParams)
+							: params,
+					);
 
 				if (options.json) {
 					printJson(result);
 				} else {
-					printDetail('Credit Estimate', [
+					printDetail('Cost Estimate', [
 						['Tokens', result.tokens],
-						['Credits', result.credits],
+						['Estimated cost (USD)', result.estimatedCostUsd],
 					]);
 				}
 			} catch (error) {
@@ -837,7 +937,7 @@ function registerPixVerse(video: Command) {
 
 	pixverse
 		.command('estimate')
-		.description('Estimate credits for a PixVerse video generation task')
+		.description('Estimate USD cost for a PixVerse video generation task')
 		.requiredOption('--capability <capability>', `Capability: ${pixVerseCapabilities.join(', ')}`)
 		.option('--model <model>', `Model: ${pixVerseModels.join(', ')} (default pixverse)`)
 		.option('--language <lang>', `Service region: ${pixVerseLanguages.join(', ')} (default en)`)
@@ -871,14 +971,15 @@ function registerPixVerse(video: Command) {
 				};
 
 				const client = await getOpenAPIClient();
-				const result = await client.estimatePixVerseVideoCredits(params);
+				const result: {tokens: number; estimatedCostUsd?: number} =
+					await client.estimatePixVerseVideoCredits(params);
 
 				if (options.json) {
 					printJson(result);
 				} else {
-					printDetail('PixVerse Credit Estimate', [
+					printDetail('PixVerse Cost Estimate', [
 						['Tokens', result.tokens],
-						['Credits', result.credits],
+						['Estimated cost (USD)', result.estimatedCostUsd],
 					]);
 				}
 			} catch (error) {
