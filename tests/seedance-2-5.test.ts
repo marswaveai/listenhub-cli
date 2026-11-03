@@ -169,11 +169,31 @@ describe('Seedance 2.5 requests', () => {
 		{referenceAudio: ['https://example.com/a.mp3']},
 		{ratio: 'adaptive'},
 		{draft: true, resolution: '480p'},
-		{prompt: 'a'.repeat(1501)},
+		{prompt: 'a'.repeat(3001)},
 	])('preserves Seedance 2.0 restrictions: %j', async (overrides) => {
 		await expect(
 			createVideo(client as never, options({model: 'doubao-seedance-2-pro', ...overrides})),
 		).rejects.toThrow();
+	});
+	it.each([
+		['doubao-seedance-2-pro', 'a'],
+		['doubao-seedance-2-fast', 'a'],
+		['doubao-seedance-2-pro', '字'],
+		['doubao-seedance-2-fast', '字'],
+	])('validates the 3000-character boundary for %s using %s', async (selectedModel, character) => {
+		const prompt = character.repeat(3000);
+		await createVideo(client as never, options({model: selectedModel, prompt}));
+		expect(client.createVideoGeneration).toHaveBeenCalledWith(
+			expect.objectContaining({
+				model: selectedModel,
+				content: expect.arrayContaining([{type: 'text', text: prompt}]),
+			}),
+		);
+		client.createVideoGeneration.mockClear();
+		await expect(
+			createVideo(client as never, options({model: selectedModel, prompt: prompt + character})),
+		).rejects.toThrow('3000');
+		expect(client.createVideoGeneration).not.toHaveBeenCalled();
 	});
 	it('estimates a final without inventing output duration or original inputs', async () => {
 		await estimateCredits(client as never, {

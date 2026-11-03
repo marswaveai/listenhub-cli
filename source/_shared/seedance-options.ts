@@ -60,8 +60,8 @@ export function validateSeedanceOptions(options: SeedanceOptions, estimate = fal
 			);
 		}
 		if (!estimate && !options.prompt?.trim()) throw new Error('--prompt is required');
-		if (options.model?.startsWith('doubao-seedance') && (options.prompt?.length ?? 0) > 1500) {
-			throw new Error('Seedance 2.0 prompt must not exceed 1500 characters');
+		if (options.model?.startsWith('doubao-seedance') && (options.prompt?.length ?? 0) > 3000) {
+			throw new Error('Seedance 2.0 prompt must not exceed 3000 characters');
 		}
 		return;
 	}
